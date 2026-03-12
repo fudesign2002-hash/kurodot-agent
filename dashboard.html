@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurodot AI Agency - Curator Dashboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+        :root {
+            --bg-color: #f7f9fc;
+            --grid-color: #e5e7eb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            
+            /* Agent Colors */
+            --chief: #8b5cf6;     /* Purple */
+            --designer: #ec4899;  /* Pink */
+            --analyst: #3b82f6;   /* Blue */
+            --editor: #10b981;    /* Green */
+            --producer: #f59e0b;  /* Orange */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(var(--grid-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--text-primary);
+        }
+
+        /* --- UI HEADER --- */
+        header {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .logo {
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            background: var(--chief);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        /* --- WORKSPACE / CANVAS --- */
+        #canvas {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* --- AGENT NODES --- */
+        .agent-container {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.3s ease;
+            cursor: grab;
+        }
+
+        .agent-node {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            position: relative;
+        }
+
+        .agent-label {
+            background: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .agent-status {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            background: rgba(255,255,255,0.8);
+            padding: 2px 8px;
+            border-radius: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Active State Animations */
+        .agent-container.active .agent-node {
+            animation: pulse-ring 2s infinite;
+        }
+        .agent-container.active .agent-status {
+            opacity: 1;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 currentColor; }
+            70% { box-shadow: 0 0 0 15px rgba(0,0,0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0,0,0, 0); }
+        }
+
+        /* Define Agent Colors */
+        #agent-chief .agent-node { background-color: var(--chief); color: var(--chief); }
+        #agent-designer .agent-node { background-color: var(--designer); color: var(--designer); }
+        #agent-analyst .agent-node { background-color: var(--analyst); color: var(--analyst); }
+        #agent-editor .agent-node { background-color: var(--editor); color: var(--editor); }
+        #agent-producer .agent-node { background-color: var(--producer); color: var(--producer); }
+
+        .agent-node { color: white !important; } /* override to keep text white */
+
+        /* --- STICKY NOTES --- */
+        .sticky-note {
+            position: absolute;
+            width: 200px;
+            min-height: 150px;
+            background-color: #fef08a; /* Yellow sticky */
+            padding: 15px;
+            box-shadow: 3px 6px 15px rgba(0,0,0,0.1);
+            border-radius: 2px 2px 10px 2px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            cursor: grab;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sticky-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: #854d0e;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .sticky-content {
+            flex: 1;
+            border: none;
+            background: transparent;
+            resize: none;
+            outline: none;
+            font-family: inherit;
+            color: #3f3f46;
+        }
+
+        .delete-note {
+            cursor: pointer;
+            opacity: 0.5;
+        }
+        .delete-note:hover { opacity: 1; color: red; }
+
+        /* --- TOOLBAR (Bottom Center) --- */
+        .toolbar {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .tool-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            font-size: 1.2rem;
+        }
+
+        .tool-btn:hover {
+            background: #f3f4f6;
+        }
+
+        /* --- DEMO PANEL (Temporary for testing) --- */
+        .demo-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 101;
+            font-size: 0.8rem;
+        }
+        .demo-panel button {
+            margin: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v8m-4-4h8"></path></svg>
+            Kurodot AI Agency
+        </div>
+        <div class="user-profile">
+            <div class="avatar">CC</div>
+            Chief Curator (You)
+        </div>
+    </header>
+
+    <div id="canvas">
+        <!-- Agents -->
+        <div class="agent-container" id="agent-chief" style="left: 45%; top: 30%;">
+            <div class="agent-node" style="color: var(--chief)">CC</div>
+            <div class="agent-label">Chief Curator</div>
+            <div class="agent-status">Thinking...</div>
+        </div>
+
+        <div class="agent-container" id="agent-designer" style="left: 25%; top: 50%;">
+            <div class="agent-node" style="color: var(--designer)">VD</div>
+            <div class="agent-label">VI Designer</div>
+            <div class="agent-status">Generating layout...</div>
+        </div>
+
+        <div class="agent-container" id="agent-editor" style="left: 65%; top: 50%;">
+            <div class="agent-node" style="color: var(--editor)">ED</div>
+            <div class="agent-label">Editor</div>
+            <div class="agent-status">Writing essay...</div>
+        </div>
+
+        <div class="agent-container" id="agent-analyst" style="left: 35%; top: 75%;">
+            <div class="agent-node" style="color: var(--analyst)">DA</div>
+            <div class="agent-label">Data Analyst</div>
+            <div class="agent-status">Fetching Umami...</div>
+        </div>
+
+        <div class="agent-container" id="agent-producer" style="left: 55%; top: 75%;">
+            <div class="agent-node" style="color: var(--producer)">TP</div>
+            <div class="agent-label">Tech Producer</div>
+            <div class="agent-status">Building HTML...</div>
+        </div>
+
+        <!-- Initial Sticky Note -->
+        <div class="sticky-note" style="left: 45%; top: 10%;">
+            <div class="sticky-header">
+                <span>Task Brief</span>
+                <span class="delete-note" onclick="this.parentElement.parentElement.remove()">✕</span>
+            </div>
+            <textarea class="sticky-content" placeholder="Type instructions here...">Let's create a 5-page digital exhibition booklet for FUROBOT.</textarea>
+        </div>
+    </div>
+
+    <!-- Bottom Toolbar -->
+    <div class="toolbar">
+        <button class="tool-btn" title="Add Sticky Note" onclick="addStickyNote()">📝</button>
+        <button class="tool-btn" title="Add Connector (Coming Soon)">↗️</button>
+        <button class="tool-btn" title="Run Agency" onclick="triggerDemoWorkflow()" style="color: var(--chief);">▶️</button>
+    </div>
+
+    <!-- Demo Controls to simulate Agent Activity -->
+    <div class="demo-panel">
+        <strong>Simulate Agent State:</strong><br>
+        <button onclick="toggleAgent('agent-chief', 'Delegating tasks...')">Chief Curator</button>
+        <button onclick="toggleAgent('agent-designer', 'Searching assets...')">Designer</button>
+        <button onclick="toggleAgent('agent-editor', 'Writing copy...')">Editor</button>
+        <button onclick="toggleAgent('agent-analyst', 'Analyzing traffic...')">Analyst</button>
+        <button onclick="toggleAgent('agent-producer', 'Deploying...')">Producer</button>
+    </div>
+
+    <script>
+        // --- Drag and Drop Logic ---
+        let isDragging = false;
+        let currentElement = null;
+        let startX, startY, initialX, initialY;
+
+        document.addEventListener('mousedown', (e) => {
+            const draggables = ['agent-container', 'sticky-note'];
+            const target = e.target.closest('.agent-container') || e.target.closest('.sticky-note');
+            
+            if (target && e.target.tagName !== 'TEXTAREA') {
+                isDragging = true;
+                currentElement = target;
+                
+                startX = e.clientX;
+                startY = e.clientY;
+                
+                const rect = currentElement.getBoundingClientRect();
+                initialX = rect.left;
+                initialY = rect.top;
+                
+                currentElement.style.cursor = 'grabbing';
+                currentElement.style.zIndex = 1000;
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            currentElement.style.left = `${initialX + dx}px`;
+            currentElement.style.top = `${initialY + dy}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging && currentElement) {
+                currentElement.style.cursor = 'grab';
+                currentElement.style.zIndex = '';
+                isDragging = false;
+                currentElement = null;
+            }
+        });
+
+        // --- Sticky Note Logic ---
+        function addStickyNote() {
+            const canvas = document.getElementById('canvas');
+            const note = document.createElement('div');
+            note.className = 'sticky-note';
+            // Random position near center
+            const x = window.innerWidth / 2 + (Math.random() * 100 - 50);
+            const y = window.innerHeight / 2 + (Math.random() * 100 - 50);
+            
+            note.style.left = `${x}px`;
+            note.style.top = `${y}px`;
+            note.style.backgroundColor = getRandomStickyColor();
+            
+            note.innerHTML = `
+                <div class="sticky-header">
+                    <span>Note</span>
+                    <span class="delete-note" onclick="this.parentElement.parentElement.remove()">✕</span>
+                </div>
+                <textarea class="sticky-content" placeholder="Type your instruction or idea..."></textarea>
+            `;
+            
+            canvas.appendChild(note);
+        }
+
+        function getRandomStickyColor() {
+            const colors = ['#fef08a', '#bbf7d0', '#fbcfe8', '#bae6fd'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // --- Simulate Agent State ---
+        function toggleAgent(agentId, statusText) {
+            const el = document.getElementById(agentId);
+            const statusEl = el.querySelector('.agent-status');
+            
+            if (el.classList.contains('active')) {
+                el.classList.remove('active');
+                statusEl.innerText = 'Idle';
+            } else {
+                el.classList.add('active');
+                statusEl.innerText = statusText;
+            }
+        }
+
+        // Simulate a small workflow
+        async function triggerDemoWorkflow() {
+            const delay = ms => new Promise(res => setTimeout(res, ms));
+            
+            // 1. Chief reads sticky note
+            toggleAgent('agent-chief', 'Reading instructions...');
+            await delay(2000);
+            toggleAgent('agent-chief'); // off
+            
+            // 2. Assigns Tasks
+            toggleAgent('agent-chief', 'Delegating to Data & Design');
+            await delay(1000);
+            toggleAgent('agent-analyst', 'Fetching Umami API...');
+            toggleAgent('agent-designer', 'Drafting layout...');
+            
+            await delay(2500);
+            toggleAgent('agent-chief');
+            toggleAgent('agent-analyst');
+            toggleAgent('agent-designer');
+            
+            // 3. Editor & Producer
+            toggleAgent('agent-editor', 'Writing Curatorial Essay');
+            toggleAgent('agent-producer', 'Preparing build environment');
+            
+            await delay(3000);
+            toggleAgent('agent-editor');
+            toggleAgent('agent-producer');
+        }
+    </script>
+</body>
+</html>

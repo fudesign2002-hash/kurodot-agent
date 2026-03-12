@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUROBOT - Poster</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Playfair+Display:ital@0;1&family=Roboto:wght@300;400&display=swap');
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Roboto', sans-serif;
+            padding: 20px;
+        }
+        
+        .poster-container {
+            width: 800px;
+            height: 1131px; /* A4 Ratio */
+            background-color: #fff;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .poster-image {
+            flex: 6;
+            background-image: url('https://firebasestorage.googleapis.com/v0/b/blackdot-1890a.firebasestorage.app/o/artwork_files%2Fpainting%2Fy1ruPpFbPVX2nr6tXQcP-1764895546465_compressed_art.png?alt=media&token=ae399217-e499-437c-a63b-5a7af93ed7ef');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        
+        .poster-content {
+            flex: 4;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            padding: 50px 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .header-section h1 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 80px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            line-height: 1;
+            margin-bottom: 10px;
+            color: #ff4757;
+        }
+        
+        .header-section h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            font-style: italic;
+            color: #cccccc;
+            margin-bottom: 20px;
+        }
+        
+        .artist-name {
+            font-family: 'Oswald', sans-serif;
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ffffff;
+            border-bottom: 2px solid #ff4757;
+            display: inline-block;
+            padding-bottom: 5px;
+            margin-bottom: 30px;
+        }
+        
+        .overview {
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #b3b3b3;
+            max-height: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .footer-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-top: 1px solid #333;
+            padding-top: 20px;
+        }
+        
+        .venue {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #ff4757;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="poster-container">
+        <!-- 上半部：主視覺圖片 -->
+        <div class="poster-image"></div>
+        
+        <!-- 下半部：展覽資訊排版 -->
+        <div class="poster-content">
+            <div class="header-section">
+                <h1>FUROBOT</h1>
+                <h2>A Pop Art Dialogue Between East and West</h2>
+                <div class="artist-name">By Keng Fu Chu</div>
+                <div class="overview">This exhibition showcases the signature works of Keng Fu Chu, a D.C.-based Taiwanese artist. Recognized as one of the top 150 illustrators worldwide by Illustration Now, Chu’s influential designs have been featured in premier publications across Taiwan, Korea, the U.S., Germany, and the U.K.<br><br>At the heart of this showcase is FUROBOT—a series of modern, playful robot sculptures that bridge the gap between imagination and contemporary design. Through these characters, Chu transforms cold mechanical forms into vibrant storytellers full of humor and life. We invite you to explore the world of FUROBOT and experience the creative vision of an artist who continues to shape the modern visual landscape.</div>
+            </div>
+            
+            <div class="footer-section">
+                <div class="venue">📍 Venue: kurodot.io</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
