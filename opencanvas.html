@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Canvas</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            /* Dot grid background */
+            background-color: #f7f7f7;
+            background-image: radial-gradient(#d4d4d4 1.5px, transparent 1.5px);
+            background-size: 24px 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .sticky-note {
+            width: 260px;
+            height: 260px;
+            background-color: #ffb1a4; /* salmon pink color from the image */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* slight drop shadow */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px;
+            box-sizing: border-box;
+            border-radius: 2px;
+            cursor: move; /* indicates it can be dragged in a real canvas */
+        }
+
+        .note-content {
+            color: rgba(0, 0, 0, 0.45);
+            font-size: 16px;
+            line-height: 1.4;
+            outline: none;
+            flex-grow: 1;
+        }
+
+        .note-author {
+            color: rgba(0, 0, 0, 0.5);
+            font-size: 12px;
+            pointer-events: none; /* so it doesn't interfere with editing if needed */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sticky-note">
+        <div class="note-content" contenteditable="true">Type anything, @mention anyone</div>
+        <div class="note-author">Chu, Keng-Fu</div>
+    </div>
+
+</body>
+</html>
