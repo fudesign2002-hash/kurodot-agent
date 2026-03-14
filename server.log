@@ -1,0 +1,339 @@
+INFO:     Will watch for changes in these directories: ['/Users/kengfuchu/Documents/GitHub/kurodot-agent']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [77038] using StatReload
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/auth/__init__.py:54: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/oauth2/__init__.py:40: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/api_core/_python_version_support.py:246: FutureWarning: You are using a non-supported Python version (3.9.6). Google will not post any further updates to google.api_core supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.10, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+INFO:     Started server process [77093]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:60789 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60789 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60789 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60789 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60790 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60790 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60790 - "GET /api/settings HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/uvicorn/protocols/http/h11_impl.py", line 409, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/applications.py", line 1138, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 121, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 107, in app
+    response = await f(request)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 426, in app
+    raw_response = await run_endpoint_function(
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+  File "/Users/kengfuchu/Documents/GitHub/kurodot-agent/main.py", line 26, in get_settings
+    "test_url": settings.TEST_URL,
+AttributeError: module 'settings' has no attribute 'TEST_URL'
+INFO:     127.0.0.1:60940 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60940 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60940 - "GET /api/settings HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/uvicorn/protocols/http/h11_impl.py", line 409, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/applications.py", line 1138, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 121, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 107, in app
+    response = await f(request)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 426, in app
+    raw_response = await run_endpoint_function(
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+  File "/Users/kengfuchu/Documents/GitHub/kurodot-agent/main.py", line 26, in get_settings
+    "test_url": settings.TEST_URL,
+AttributeError: module 'settings' has no attribute 'TEST_URL'
+INFO:     127.0.0.1:60946 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60946 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60946 - "GET /api/settings HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/uvicorn/protocols/http/h11_impl.py", line 409, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/applications.py", line 1138, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 121, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 107, in app
+    response = await f(request)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 426, in app
+    raw_response = await run_endpoint_function(
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+  File "/Users/kengfuchu/Documents/GitHub/kurodot-agent/main.py", line 26, in get_settings
+    "test_url": settings.TEST_URL,
+AttributeError: module 'settings' has no attribute 'TEST_URL'
+INFO:     127.0.0.1:60965 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60965 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60965 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60965 - "GET /api/settings HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/uvicorn/protocols/http/h11_impl.py", line 409, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/applications.py", line 1138, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 121, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 107, in app
+    response = await f(request)
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 426, in app
+    raw_response = await run_endpoint_function(
+  File "/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/fastapi/routing.py", line 314, in run_endpoint_function
+    return await dependant.call(**values)
+  File "/Users/kengfuchu/Documents/GitHub/kurodot-agent/main.py", line 26, in get_settings
+    "test_url": settings.TEST_URL,
+AttributeError: module 'settings' has no attribute 'TEST_URL'
+INFO:     127.0.0.1:60983 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+WARNING:  StatReload detected changes in 'settings.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [77093]
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/auth/__init__.py:54: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/oauth2/__init__.py:40: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/api_core/_python_version_support.py:246: FutureWarning: You are using a non-supported Python version (3.9.6). Google will not post any further updates to google.api_core supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.10, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+INFO:     Started server process [77268]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:61111 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61111 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61113 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61113 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61113 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61113 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61111 - "POST /api/start_curation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61111 - "GET /api/job/6e4ab023-2122-423c-96de-23aafee53e13 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "POST /api/start_curation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61254 - "GET /api/job/3243ffbe-50b3-4f6d-a1b7-8aceae42b102 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61706 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "POST /api/start_curation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61706 - "GET /api/job/37e77aab-a437-411e-af6f-efdb291c5720 HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [77268]
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/auth/__init__.py:54: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/oauth2/__init__.py:40: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/api_core/_python_version_support.py:246: FutureWarning: You are using a non-supported Python version (3.9.6). Google will not post any further updates to google.api_core supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.10, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+INFO:     Started server process [77340]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:62508 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "POST /api/start_curation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62508 - "GET /api/job/944fa1ed-b18f-436f-807f-e043ab36fb9f HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [77340]
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/auth/__init__.py:54: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/oauth2/__init__.py:40: FutureWarning: You are using a Python version 3.9 past its end of life. Google will update google-auth with critical bug fixes on a best-effort basis, but not with any other fixes or features. Please upgrade your Python version, and then update google-auth.
+  warnings.warn(eol_message.format("3.9"), FutureWarning)
+/Users/kengfuchu/Library/Python/3.9/lib/python/site-packages/google/api_core/_python_version_support.py:246: FutureWarning: You are using a non-supported Python version (3.9.6). Google will not post any further updates to google.api_core supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.10, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+INFO:     Started server process [77359]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:63434 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63434 - "GET /api/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "POST /api/start_curation HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63435 - "GET /api/job/5c17247c-2a3b-49fd-a6d4-4a925d7f071f HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [77359]
+INFO:     Stopping reloader process [77038]

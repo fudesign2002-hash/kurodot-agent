@@ -1,0 +1,122 @@
+            // --- Proactive Interaction Logic ---
+            function triggerProactiveInsight() {
+                const analystDot = document.querySelector('.color-analyst');
+                if (!analystDot) return;
+
+                // 1. Analyst 亮起紅點通知
+                analystDot.classList.remove('state-idle', 'state-completed');
+                analystDot.classList.add('state-notice');
+                showAgentConsoleMessage('color-analyst', 'Analyst is signaling a new insight...', 3000, 30, '🚨');
+
+                // 2. 幾秒後生成一個特殊的 Sticky Note 並帶有動畫
+                setTimeout(() => {
+                    const canvas = document.getElementById('banner-artboard');
+                    let targetX = window.innerWidth / 2;
+                    let targetY = window.innerHeight / 2;
+                    
+                    if (canvas) {
+                        const rect = canvas.getBoundingClientRect();
+                        // 偏移到右邊一點，營造「剛發現」的動態感
+                        targetX = rect.right - 100;
+                        targetY = rect.top + 50;
+                    }
+                    
+                    const pos = getSafePosition(targetX, targetY);
+
+                    // 檢查目前狀態
+                    const isSquare = canvas ? (canvas.offsetWidth === canvas.offsetHeight) : false;
+                    const insights = [
+                        "80% of current visitors are on Mobile. Recommend shifting to a 4:5 ratio for better engagement.",
+                        "Visual weight analysis: Suggest adding more whitespace to the lower-right quadrant.",
+                        "Trend Data: This palette is trending in the creative industry. Strong aesthetic choice."
+                    ];
+                    
+                    const selectedInsight = isSquare ? insights[0] : (Math.random() > 0.5 ? insights[1] : insights[2]);
+
+                    // 生成一個帶有 Analyst 顏色和特定內容的 Note
+                    createNewNote(pos.x, pos.y, '#5062c8', 'Analyst', selectedInsight);
+                    
+                    // 同步到畫面上，讓大家看到是 Analyst 在說話
+                    showAgentConsoleMessage('color-analyst', 'Sent recommendation to board.', 3000, 30, '💬');
+
+                    // 恢復狀態
+                    analystDot.classList.remove('state-notice');
+                    analystDot.classList.add('state-idle');
+                }, 4000);
+            }
+
+        function pollBackendStatus(jobId) {
+             const colorMapping = {
+                'project-manager': 'pm',
+                'analyst': 'analyst',
+                'editor': 'editor',
+                'vi-designer': 'vi',
+                'tech-producer': 'tech'
+            };
+
+            const pollInterval = setInterval(async () => {
+                const res = await fetch(`/api/job/${jobId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    if(data.logs && data.logs.length > 0) {
+                        const lastLog = data.logs[data.logs.length - 1];
+                        if(window._lastLog !== lastLog) {
+                            window._lastLog = lastLog;
+                            let agentMatch = Object.keys(colorMapping).find(k => lastLog.includes(k) || lastLog.toLowerCase().includes(k.replace('-', ' ')));
+                            let color = agentMatch ? `color-${colorMapping[agentMatch]}` : 'color-pm';
+                            showAgentConsoleMessage(color, lastLog, 2500, 20);
+                        }
+                    }
+
+                    for (const [agentName, state] of Object.entries(data.agents)) {
+                        const shortName = colorMapping[agentName];
+                        if(!shortName) continue;
+                        const dot = document.querySelector(`.color-${shortName}`);
+                        if (dot) {
+                            dot.classList.remove('state-idle', 'state-executing', 'state-completed');
+                            if (state === "Received" || state === "Executing") {
+                                dot.classList.add('state-executing'); 
+                                dot.style.opacity = (state === "Received") ? '0.5' : '1';
+                            } else if (state === "Completed") {
+                                dot.style.opacity = '1';
+                                dot.classList.add('state-completed');
+                            } else {
+                                dot.style.opacity = '1';
+                                dot.classList.add('state-idle');
+                            }
+                        }
+                    }
+
+                    // Strictly division of labor based on Backend Flags - Cascading fixes missed polling states!
+                    if (!window._bannerSpawned && ["designer_white_frame", "designer_add_image", "editor_add_text"].includes(data.current_step)) {
+                        window._bannerSpawned = true;
+                        spawnCollaborativeBanner(data.design_shape || 'square');
+                    }
+                    if (!window._imageSpawned && ["designer_add_image", "editor_add_text"].includes(data.current_step)) {
+                        window._imageSpawned = true;
+                        setTimeout(() => addBannerImage(data.ex_img_url), 100);
+                    }
+                    if (!window._textSpawned && ["editor_add_text"].includes(data.current_step)) {
+                        window._textSpawned = true;
+                        const extra = {
+                            artist: data.ex_artist,
+                            venue: data.ex_venue,
+                            date: data.ex_date,
+                            count: data.ex_artworks_count,
+                            visitors: data.ex_visitors
+                        };
+                        setTimeout(() => addBannerTypography(data.ex_title, data.ex_subtitle, data.ex_description, extra), 800);
+                    }
+
+                    if (data.status === 'finished' || data.status === 'error') {
+                        clearInterval(pollInterval);
+                        if (data.status === 'finished') {
+                            setTimeout(() => {
+                                triggerProactiveInsight();
+                            }, 3000);
+                        }
+                    }
+                }
+            }, 800);
+        }

@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Open Canvas</title>
+    <title>Open Canvas v1.4.0 (Client-Side Fetch)</title>
+    <!-- v1.3.1: Zero-Dependency Layout Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body, html {
             margin: 0;
@@ -20,41 +23,2496 @@
             overflow: hidden;
         }
 
+        /* Status bar at the bottom */
+        .status-bar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 24px;
+            background: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            align-items: center;
+            z-index: 1000; /* Ensure UI stays above canvas */
+        }
+
+        .agent-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #555;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .agent-status:hover {
+            transform: scale(1.05);
+        }
+
+        /* Console message text color */
+        .console-text {
+            color: #999;
+            font-size: 13px;
+            font-weight: 400;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            position: relative;
+        }
+
+        /* 點的發光效果代表執行中，或者不同透明度代表不同狀態 (Idle: 透明度低, Received: 實心, Executing: 脈衝發光, Completed: 加上打勾) */
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(inherit, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(inherit, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(inherit, 0); }
+        }
+
+        /* 根據您的截圖，全部的點都是實心的，我們移除透明度差異，用乾淨的圓點表示 */
+        .state-idle { opacity: 1; }
+        .state-received { opacity: 1; }
+        .state-executing { 
+            opacity: 1; 
+            animation: pulse 1.5s infinite;
+        }
+        .state-completed { opacity: 1; }
+
+        /* 新增：主動通知狀態 (紅點閃爍) */
+        @keyframes notice-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); background-color: #ff3b30; }
+            70% { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); background-color: #ff3b30; }
+            100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); background-color: #ff3b30; }
+        }
+
+        .state-notice {
+            background-color: #ff3b30 !important;
+            animation: notice-pulse 1.2s infinite ease-in-out;
+            opacity: 1;
+        }
+
+        /* 讓執行中的 Agent 點也會閃爍顏色對應的光圈 */
+        .color-pm.state-executing { animation: pulse-pm 1.5s infinite; }
+        .color-vi.state-executing { animation: pulse-vi 1.5s infinite; }
+        .color-editor.state-executing { animation: pulse-editor 1.5s infinite; }
+        .color-analyst.state-executing { animation: pulse-analyst 1.5s infinite; }
+        .color-tech.state-executing { animation: pulse-tech 1.5s infinite; }
+
+        @keyframes pulse-pm {
+            0% { box-shadow: 0 0 0 0 rgba(241, 164, 86, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(241, 164, 86, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(241, 164, 86, 0); }
+        }
+        @keyframes pulse-vi {
+            0% { box-shadow: 0 0 0 0 rgba(206, 83, 138, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(206, 83, 138, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(206, 83, 138, 0); }
+        }
+        @keyframes pulse-editor {
+            0% { box-shadow: 0 0 0 0 rgba(135, 229, 231, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(135, 229, 231, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(135, 229, 231, 0); }
+        }
+        @keyframes pulse-analyst {
+            0% { box-shadow: 0 0 0 0 rgba(80, 98, 200, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(80, 98, 200, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(80, 98, 200, 0); }
+        }
+        @keyframes pulse-tech {
+            0% { box-shadow: 0 0 0 0 rgba(39, 42, 58, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(39, 42, 58, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(39, 42, 58, 0); }
+        }
+
+        /* 移除之前 pm 強制加上邊框的樣式，改用單純的背景色 (這裡完全依照 Readme 的定義) */
+        .color-pm { background-color: #f1a456; }
+        .color-vi { background-color: #ce538a; }
+        .color-editor { background-color: #87e5e7; }
+        .color-analyst { background-color: #5062c8; }
+        .color-tech { background-color: #272a3a; }
+        
+        /* 讓新增的便利貼可以放置在不同位置並允許拖曳與點擊 */
+        #canvas-board {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
         .sticky-note {
+            position: absolute;
             width: 260px;
-            height: 260px;
-            background-color: #ffb1a4; /* salmon pink color from the image */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* slight drop shadow */
+            /* Auto-expand height settings */
+            min-height: 120px;
+            max-height: 380px; 
+            /* background-color fallback */
+            background-color: #ffb1a4;
+            color: #ffffff !important; /* Force white text for ALL colored themes */
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
             padding: 24px;
             box-sizing: border-box;
-            border-radius: 2px;
-            cursor: move; /* indicates it can be dragged in a real canvas */
+            border-radius: 4px;
+            cursor: move;
+            user-select: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sticky-note.light-theme {
+            color: rgba(0, 0, 0, 0.7) !important; /* Only white/PM notes stay black */
+            border: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .note-content {
-            color: rgba(0, 0, 0, 0.45);
+            color: inherit !important;
             font-size: 16px;
-            line-height: 1.4;
+            font-weight: 500; /* Slightly bolder for better contrast on colors */
+            line-height: 1.5;
             outline: none;
+            /* flex-grow helps content push the author down but shrink to fit initially */
             flex-grow: 1;
+            cursor: text;
+            overflow-y: auto;
+            word-wrap: break-word;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .light-theme .note-content {
+            text-shadow: none !important;
+            font-weight: 400;
+            color: rgba(0, 0, 0, 0.7) !important;
+        }
+
+        .note-footer {
+            color: inherit !important;
+            font-size: 9px;
+            opacity: 0.8 !important; /* Higher opacity for visibility */
+            margin-top: 12px;
+            font-weight: 600 !important; /* Bolder */
+            letter-spacing: 0.5px;
+            text-align: left; /* Align agent name to left */
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: row; /* Standard row flow: Agent Left, Hint Right */
+        }
+
+        .note-hint {
+            font-size: 10px;
+            opacity: 0.6;
+            text-transform: none;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-align: right;
+        }
+
+        .note-hint .return-symbol {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1;
+            margin-left: 2px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+
+        .note-hint .return-symbol:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .note-hint .return-symbol:active {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(0);
+        }
+
+        .light-theme .note-hint .return-symbol {
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        .light-theme .note-hint .return-symbol:hover {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        /* 讓空的便利貼有漂亮的 placeholder 提示文字 */
+        .note-content[contenteditable="true"]:empty:before {
+            content: attr(data-placeholder);
+            color: #ffffff !important; /* Force white for placeholder */
+            opacity: 0.7;
+            pointer-events: none;
+            display: block; /* For Firefox */
+        }
+
+        .light-theme .note-content[contenteditable="true"]:empty:before {
+            color: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        .note-footer {
+            font-size: 9px;
+            opacity: 0.5;
+            margin-top: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-align: right;
+            text-transform: uppercase;
+        }
+
+        /* 滾動條美化 */
+        .note-content::-webkit-scrollbar {
+            width: 4px;
+        }
+        .note-content::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+        }
+        .light-theme .note-content::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.2);
         }
 
         .note-author {
-            color: rgba(0, 0, 0, 0.5);
+            color: inherit;
+            opacity: 0.8;
             font-size: 12px;
-            pointer-events: none; /* so it doesn't interfere with editing if needed */
+            pointer-events: none;
+            margin-top: 16px;
+            flex-shrink: 0;
+        }
+
+        /* 刪除按鈕樣式 */
+        .delete-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            color: inherit;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.2s;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .light-theme .delete-btn {
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        .sticky-note:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .light-theme .delete-btn:hover {
+            background: rgba(0, 0, 0, 0.15);
+            color: rgba(0, 0, 0, 0.8);
+        }
+
+        /* 新增：便利貼出現時的彈跳動畫 */
+        @keyframes popIn {
+            0% { 
+                opacity: 0; 
+                transform: scale(0.1);
+                /* Default for small items like sticky notes */
+                transform-origin: center center;
+            }
+            100% { 
+                opacity: 1; 
+                transform: scale(1);
+                transform-origin: center center;
+            }
+        }
+
+        /* Special entrance for the large canvas panel to grow from its top-left but stay centered */
+        @keyframes canvasGrow {
+            0% { 
+                opacity: 0; 
+                transform: scale(0.1);
+                transform-origin: top left;
+            }
+            100% { 
+                opacity: 1; 
+                transform: scale(1);
+                transform-origin: top left;
+            }
+        }
+
+        .sticky-note.animate-in {
+            animation: popIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .result-panel.animate-in {
+            animation: canvasGrow 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* 刪除時的淡出動畫 (選用，讓消失也比較平滑) */
+        @keyframes fadeOutDown {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.9) translateY(20px); }
+        }
+
+        .sticky-note.animate-out {
+            animation: fadeOutDown 0.2s ease-in forwards;
+            pointer-events: none;
+        }
+
+        /* Agent Console Message Log */
+        .agent-console {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000; /* Console also needs to be above canvas */
+        }
+            z-index: 100;
+            pointer-events: none; /* 讓滑鼠點擊可以穿透 */
+        }
+
+        /* Skeleton Loading pulse animation */
+        @keyframes skeleton-pulse {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .pulse-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-pulse 1.5s infinite;
+            border-radius: 4px;
+            width: 100%;
+            height: 100%;
+        }
+
+        .console-message {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 12px 24px;
+            border-radius: 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: #444; /* 執行的工作文字保持深色 */
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .console-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .console-message.hide {
+            opacity: 0;
+            transform: translateY(-20px) scale(0.95);
+        }
+
+        .console-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* 只有 Agent 的名稱文字變淡 */
+        .console-agent-name {
+            color: #ccc;
+            font-weight: 700;
+            margin-right: 6px;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        /* 打字機游標效果 */
+        .typing-cursor::after {
+            content: '▋';
+            display: inline-block;
+            vertical-align: text-bottom;
+            margin-left: 4px;
+            animation: blinkTarget 1s step-start infinite;
+            color: #999;
+        }
+        @keyframes blinkTarget { 50% { opacity: 0; } }
+
+    
+        .result-panel {
+            position: absolute;
+            box-shadow: none;
+            border-radius: 8px;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+        }
+        @keyframes fadePulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+    
+        @keyframes scaleIn {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.5); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.5); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes bounceAndCrumple {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0); }
+            20% { transform: scale(1.1) translateY(-10px); }
+            40% { transform: scale(1) translateY(0); }
+            60% { transform: scale(1.05) translateY(-5px); }
+            80% { transform: scale(1) translateY(0) rotate(5deg); }
+            100% { transform: scale(0.1) rotate(45deg) skew(-20deg, -20deg); opacity: 0; filter: blur(4px); }
         }
     </style>
 </head>
 <body>
 
-    <div class="sticky-note">
-        <div class="note-content" contenteditable="true">Type anything, @mention anyone</div>
-        <div class="note-author">Chu, Keng-Fu</div>
+    <div id="canvas-board">
+        <!-- 初始無便利貼 -->
     </div>
 
+    <!-- Agent Status Tracker -->
+    <div class="status-bar">
+        <!-- 狀態列的顏色配合 Readme 定義的顏色代碼 -->
+        <div class="agent-status" title="Project Manager" data-role="Project Manager" data-color="#f1a456">
+            <span class="status-dot color-pm state-idle"></span>
+            PM
+        </div>
+        <div class="agent-status" title="VI Designer" data-role="VI Designer" data-color="#ce538a">
+            <span class="status-dot color-vi state-idle"></span>
+            DESIGNER
+        </div>
+        <div class="agent-status" title="Editorial" data-role="Editor" data-color="#87e5e7">
+            <span class="status-dot color-editor state-idle"></span>
+            EDITOR
+        </div>
+        <div class="agent-status" title="Data Analyst" data-role="Data Analyst" data-color="#5062c8">
+            <span class="status-dot color-analyst state-idle"></span>
+            ANALYST
+        </div>
+        <div class="agent-status" title="Tech Producer" data-role="Tech Producer" data-color="#272a3a">
+            <span class="status-dot color-tech state-idle"></span>
+            TECH
+        </div>
+    </div>
+
+    <!-- Agent Console Log (通知文字區域) -->
+    <div id="agent-console" class="agent-console"></div>
+
+    <script>
+        let zIndexCounter = 100;
+        const canvasBoard = document.getElementById('canvas-board');
+        const agentStatusButtons = document.querySelectorAll('.agent-status');
+
+        // Allow dragging for notes
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = element;
+            header.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                if (e.target.classList.contains('delete-btn') || e.target.classList.contains('note-content')) return;
+                e.preventDefault();
+                zIndexCounter++;
+                element.style.zIndex = zIndexCounter;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        function getSafePosition(startX, startY) {
+            const padding = 20;
+            const maxX = window.innerWidth - 250 - padding; 
+            const maxY = window.innerHeight - 250 - padding; 
+            let x = Math.max(padding, Math.min(startX, maxX));
+            let y = Math.max(padding, Math.min(startY, maxY));
+            return { x, y };
+        }
+
+        function createNewNote(x, y, bgColor, roleName, initialText, forceLightText = false) {
+            // Normalize roleName: switch Unassigned (Chief Curator) to just Chief Curator
+            if (roleName === 'Unassigned (Chief Curator)') {
+                roleName = 'Chief Curator';
+            }
+
+            const newNote = document.createElement('div');
+            newNote.className = 'sticky-note animate-in';
+            
+            // Only Chief Curator or Project Manager uses light theme (black text)
+            const isLightBg = forceLightText || roleName === 'Chief Curator' || roleName === 'Project Manager';
+            if (isLightBg) {
+                newNote.classList.add('light-theme');
+            }
+            
+            newNote.style.backgroundColor = bgColor;
+            newNote.style.left = `${x}px`;
+            newNote.style.top = `${y}px`;
+            newNote.style.transform = 'none';
+            newNote.style.zIndex = ++zIndexCounter;
+
+            const placeholderText = roleName === 'Chief Curator' ? 'Enter your instruction here...' : 'Write instruction for ' + roleName + '...';
+            
+            const isTechNote = roleName === 'Tech Producer';
+            const isPMNote = roleName === 'Project Manager'; // Project Manager is the black one
+
+            const techShortcuts = (isTechNote || isPMNote) ? `
+                <div class="tech-shortcuts" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; margin-bottom: 4px;">
+                    <button class="tech-btn" data-cmd="Export JPG" style="background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); color: #333; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer;">JPG</button>
+                    <button class="tech-btn" data-cmd="Export PNG" style="background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); color: #333; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer;">PNG</button>
+                    <button class="tech-btn" data-cmd="Copy to Clipboard" title="Copy Image" style="background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); color: #333; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer; display: flex; align-items: center; gap: 3px;">
+                        <span style="font-size: 10px;">📋</span> Copy
+                    </button>
+                </div>
+            ` : '';
+
+            // Adjusted tech-btn style for colored sticky notes (Tech Producer - Purple)
+            const techShortcutsColored = isTechNote ? `
+                <div class="tech-shortcuts" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; margin-bottom: 4px;">
+                    <button class="tech-btn" data-cmd="Export JPG" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer;">JPG</button>
+                    <button class="tech-btn" data-cmd="Export PNG" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer;">PNG</button>
+                    <button class="tech-btn" data-cmd="Copy to Clipboard" title="Copy Image" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer; display: flex; align-items: center; gap: 3px;">
+                        <span style="font-size: 10px;">📋</span> Copy
+                    </button>
+                </div>
+            ` : '';
+
+            const finalShortcuts = isPMNote ? techShortcuts : techShortcutsColored;
+
+            const contentHTML = initialText 
+                ? `<div class="note-content" contenteditable="true">${initialText}</div>`
+                : `<div class="note-content" contenteditable="true" data-placeholder="${placeholderText}"></div>`;
+
+            newNote.innerHTML = `
+                <div class="note-header" style="cursor: move;">
+                    <span class="delete-btn">✕</span>
+                </div>
+                ${finalShortcuts}
+                ${contentHTML}
+                <div class="note-footer">
+                    <span>${roleName}</span>
+                    <span class="note-hint">Submit with <span class="return-symbol">↵</span></span>
+                </div>
+            `;
+            
+            canvasBoard.appendChild(newNote);
+            makeDraggable(newNote);
+
+            const contentDiv = newNote.querySelector('.note-content');
+            const submitBtn = newNote.querySelector('.return-symbol');
+
+            // Tech / PM Shortcuts Logic
+            if (isTechNote || isPMNote) {
+                newNote.querySelectorAll('.tech-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const cmd = btn.getAttribute('data-cmd');
+                        contentDiv.innerText = cmd;
+                        
+                        // Force a visual feedback on the button
+                        if (isPMNote) {
+                            btn.style.background = 'rgba(0,0,0,0.2)';
+                            setTimeout(() => { btn.style.background = 'rgba(0,0,0,0.05)'; }, 200);
+                        } else {
+                            btn.style.background = 'rgba(255,255,255,0.4)';
+                            setTimeout(() => { btn.style.background = 'rgba(255,255,255,0.15)'; }, 200);
+                        }
+
+                        // Auto-submit after shortcut click
+                        setTimeout(() => {
+                            if (submitBtn) submitBtn.click();
+                            else contentDiv.blur();
+                        }, 100);
+                    });
+                });
+            }
+            
+            if (submitBtn) {
+                submitBtn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+                submitBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const text = contentDiv.innerText.trim();
+                    if (!text) return;
+
+                    // 1. Visual updates
+                    const footer = newNote.querySelector('.note-footer');
+                    const hint = newNote.querySelector('.note-hint');
+                    if (hint) hint.style.opacity = '0';
+                    if (footer) footer.style.justifyContent = 'flex-start';
+                    
+                    // 2. Explicitly trigger the processing logic based on role
+                    console.log(`%c[USER]%c Button clicked for ${roleName}. Text: "${text}"`, "color: #2196F3; font-weight:bold;", "color:#333");
+                    
+                    if (roleName === 'Chief Curator') {
+                        if (text.length > 3 && !contentDiv.dataset.pmTriggered) {
+                            contentDiv.dataset.pmTriggered = "true";
+                            processTask(text, newNote);
+                        }
+                    } else {
+                        if (!contentDiv.dataset.revisionTriggered || contentDiv.dataset.lastText !== text) {
+                            contentDiv.dataset.revisionTriggered = "true";
+                            contentDiv.dataset.lastText = text;
+                            triggerRevision(roleName, text, newNote);
+                        }
+                    }
+
+                    contentDiv.blur(); // Remove focus after triggering
+                });
+            }
+            
+            if (!initialText) {
+                setTimeout(() => contentDiv.focus(), 50);
+            }
+
+            contentDiv.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    
+                    // Hide hint and symbol immediately on Enter
+                    const footer = newNote.querySelector('.note-footer');
+                    const hint = newNote.querySelector('.note-hint');
+                    if (hint) hint.style.opacity = '0';
+                    if (footer) footer.style.justifyContent = 'flex-start';
+                    
+                    this.blur();
+                    
+                    // Trigger completion visualization immediately if user hits Enter
+                    // This creates a better UX than waiting for the blur/backend cycle
+                    const text = this.innerText.trim();
+                    if (text.length > 5) {
+                        console.log("%c[USER]%c Enter pressed. Triggering task.", "color: #2196F3; font-weight:bold;", "color:#333");
+                    }
+                }
+            });
+
+            // Real Trigger Logic
+            contentDiv.addEventListener('blur', function() {
+                const text = this.innerText.trim();
+                console.log(`%c[DEBUG]%c Blur triggered for ${roleName}. Text: "${text}"`, "color: #9e9e9e", "color: #333");
+                
+                if (!text) {
+                    newNote.remove();
+                    return;
+                }
+
+                if (roleName === 'Chief Curator') {
+                    if (text.length > 3 && !this.dataset.pmTriggered) {
+                        this.dataset.pmTriggered = "true";
+                        processTask(text, newNote);
+                    }
+                } else {
+                    // This area handles BI Designer specifically
+                    console.log(`%c[DEBUG]%c Revision check for ${roleName}. Already triggered: ${this.dataset.revisionTriggered}`);
+                    if (!this.dataset.revisionTriggered || this.dataset.lastText !== text) {
+                        this.dataset.revisionTriggered = "true";
+                        this.dataset.lastText = text;
+                        console.log(`%c[DEBUG]%c Calling triggerRevision for ${roleName}`);
+                        triggerRevision(roleName, text, newNote);
+                    }
+                }
+            });
+            
+            newNote.querySelector('.delete-btn').addEventListener('click', function() {
+                newNote.remove();
+            });
+        }
+
+        canvasBoard.addEventListener('dblclick', function(e) {
+            if (e.target.id === 'canvas-board') {
+                const targetX = e.clientX - 130;
+                const targetY = e.clientY - 60;
+                const pos = getSafePosition(targetX, targetY);
+                createNewNote(pos.x, pos.y, '#fefefe', 'Chief Curator', '', true);
+            }
+        });
+
+        agentStatusButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const roleName = button.getAttribute('data-role');
+                const bgColor = button.getAttribute('data-color');
+                
+                let targetX = window.innerWidth / 2 - 125 + (Math.random() * 100 - 50);
+                let targetY = window.innerHeight / 2 - 125 + (Math.random() * 100 - 50);
+                
+                const artboard = document.getElementById('banner-artboard');
+                if (artboard) {
+                    const rect = artboard.getBoundingClientRect();
+                    const edge = Math.floor(Math.random() * 4);
+                    // note width is ~200-250, height ~180
+                    // randomly distribute around the design box, slightly overlapping
+                    const overlap = 60;
+                    if (edge === 0) { // top
+                        targetX = rect.left + Math.random() * rect.width - 125;
+                        targetY = rect.top - 180 + overlap;
+                    } else if (edge === 1) { // right
+                        targetX = rect.right - overlap;
+                        targetY = rect.top + Math.random() * rect.height - 90;
+                    } else if (edge === 2) { // bottom
+                        targetX = rect.left + Math.random() * rect.width - 125;
+                        targetY = rect.bottom - overlap;
+                    } else { // left
+                        targetX = rect.left - 250 + overlap;
+                        targetY = rect.top + Math.random() * rect.height - 90;
+                    }
+                }
+                const pos = getSafePosition(targetX, targetY);
+                createNewNote(pos.x, pos.y, bgColor, roleName, '');
+            });
+        });
+
+        function showAgentConsoleMessage(dotColorClass, text, duration = 4000, speed = 30, emoji = '') {
+            const consoleArea = document.getElementById('agent-console');
+            const allMsgs = consoleArea.querySelectorAll('.console-message');
+            if (allMsgs.length >= 4) {
+                allMsgs[0].classList.replace('show', 'hide');
+                setTimeout(() => { if (allMsgs[0] && allMsgs[0].parentNode) allMsgs[0].remove(); }, 400);
+            }
+            
+            // 提取 Agent 名稱並格式化
+            let agentDisplayName = "";
+            let remainingText = text.replace(/⚠️|✅|🔗/g, '').trim();
+            
+            // 統一所有可能的 Agent 名稱，並確保它們都能被匹配
+            const agentPrefixes = [
+                { match: "Project Manager", display: "PM" },
+                { match: "Project-Manager", display: "PM" },
+                { match: "PM", display: "PM" },
+                { match: "VI Designer", display: "DESIGNER" },
+                { match: "VI-Designer", display: "DESIGNER" },
+                { match: "Designer", display: "DESIGNER" },
+                { match: "VI", display: "DESIGNER" },
+                { match: "Editorial", display: "EDITOR" },
+                { match: "Editor", display: "EDITOR" },
+                { match: "Data Analyst", display: "ANALYST" },
+                { match: "Analyst", display: "ANALYST" },
+                { match: "Tech Producer", display: "TECH" },
+                { match: "Tech Production", display: "TECH" },
+                { match: "Tech", display: "TECH" },
+                { match: "Chief Curator", display: "CHIEF CURATOR" }
+            ];
+
+            for (const agent of agentPrefixes) {
+                if (remainingText.toLowerCase().startsWith(agent.match.toLowerCase())) {
+                    agentDisplayName = agent.display; // 使用統一的大寫顯示名稱
+                    
+                    // 檢查後方是否有冒號，有的話一併移除
+                    let cutLength = agent.match.length;
+                    if (remainingText.charAt(cutLength) === ':') cutLength++;
+                    remainingText = remainingText.substring(cutLength).trim();
+                    break;
+                }
+            }
+
+            if (!emoji) {
+                const fullText = text.toLowerCase();
+                if (fullText.includes("applied") || fullText.includes("completed") || fullText.includes("downloaded") || fullText.includes("approved")) emoji = '🙌';
+                else if (fullText.includes("processing") || fullText.includes("connecting") || fullText.includes("executing") || fullText.includes("drafting")) emoji = '⚡️';
+                else if (fullText.includes("designer") || fullText.includes("layout") || fullText.includes("scaffolding") || fullText.includes("visuals")) emoji = '🎨';
+                else if (fullText.includes("editor") || fullText.includes("text") || fullText.includes("typography")) emoji = '✍️';
+                else if (fullText.includes("api") || fullText.includes("parsed") || fullText.includes("insight")) emoji = '💡';
+                else if (fullText.includes("recommendation")) emoji = '💎';
+                else if (fullText.includes("producer") || fullText.includes("export") || fullText.includes("css")) emoji = '⚙️';
+                else if (fullText.includes("error") || fullText.includes("failed")) emoji = '😱';
+                else emoji = '✨';
+            }
+
+            const msgBox = document.createElement('div');
+            msgBox.className = 'console-message show';
+            msgBox.innerHTML = `
+                <div class="console-dot ${dotColorClass}"></div>
+                <div class="console-text" style="display:inline-block; max-width:85%;">
+                    ${agentDisplayName ? `<span class="console-agent-name">${agentDisplayName}</span>` : ''}
+                    <span class="typing-area"></span>
+                </div>
+                <div class="console-emoji" style="opacity:0; transition:opacity 0.3s; margin-left:8px; font-size:16px;">${emoji}</div>
+            `;
+            consoleArea.appendChild(msgBox);
+            
+            const typingArea = msgBox.querySelector('.typing-area');
+            const emojiContainer = msgBox.querySelector('.console-emoji');
+            let i = 0;
+            function typeWriter() {
+                if (i < remainingText.length) {
+                    typingArea.innerHTML += remainingText.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, speed);
+                } else {
+                    emojiContainer.style.opacity = '1';
+                    setTimeout(() => {
+                        msgBox.classList.replace('show', 'hide');
+                        setTimeout(() => { if(msgBox.parentNode) msgBox.remove(); }, 600);
+                    }, duration);
+                }
+            }
+            setTimeout(typeWriter, 100);
+        }
+
+        async function processTask(rawText, noteElement) {
+            const pmDot = document.querySelector('.color-pm');
+            pmDot.classList.replace('state-idle', 'state-executing');
+            showAgentConsoleMessage('color-pm', `PM is orchestrating your task...`, 3000, 30, '🚀');                                                       
+            
+            // Check for Tech specific commands (Export / Clipboard)
+            const lowerText = rawText.toLowerCase();
+            const isTechCommand = lowerText.includes('export') || lowerText.includes('jpg') || lowerText.includes('png') || lowerText.includes('clipboard') || lowerText.includes('copy');
+            const isDesignerCommand = lowerText.includes('4:5') || lowerText.includes('dark') || lowerText.includes('style') || lowerText.includes('layout');
+            const isEditorCommand = lowerText.includes('shorten') || lowerText.includes('content') || lowerText.includes('translate');
+
+            // --- Hand over scheduling to Logger Agent (Hub) ---
+            if (isTechCommand) {
+                const jobId = window._currentJobId || "manual-task";
+                
+                // FORCE: Immediately activate poller if manual
+                if (jobId === "manual-task") {
+                    startStandaloneTaskPoller();
+                }
+
+                // PM: Pre-emptive UI feedback
+                const pmDot = document.querySelector('.color-pm');
+                if (pmDot) {
+                    pmDot.style.opacity = '1';
+                    pmDot.classList.add('state-executing');
+                }
+
+                fetch(`/api/job/${jobId}/schedule`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: 'tech', task_type: 'export_v1', priority: 5 })
+                }).then(async res => {
+                    const data = await res.json();
+                    showAgentConsoleMessage('color-pm', `PM: Task sent to Logger. Status: ${data.task_id ? 'Scheduled' : 'Queued'}.`, 3000, 20, '📅');
+                }).catch(err => {
+                    console.error("[PM] Hub Fail Over:", err);
+                    triggerRevision('Tech Producer', rawText, noteElement);
+                });
+                
+                window._pendingTechNote = noteElement;
+                window._pendingTechInstructions = rawText;
+                return;
+            } else if (isDesignerCommand) {
+                triggerRevision('VI Designer', rawText, noteElement);
+                return;
+            } else if (isEditorCommand) {
+                triggerRevision('Editorial', rawText, noteElement);
+                return;
+            }
+
+            // Try browser-side fetch first — bypasses Vercel WAF that blocks server-side requests
+            let exhibitionData = null;
+            const lowerRawText = rawText.toLowerCase();
+            if (lowerRawText.includes('kurodot.io') || lowerRawText.includes('fu-design.com')) {
+                const isKurodot = lowerRawText.includes('kurodot.io');
+                const idMatch = isKurodot 
+                    ? rawText.match(/id=([a-zA-Z0-9_-]+)/) || rawText.match(/ex_([a-zA-Z0-9_-]+)/) || rawText.match(/exhibition\/([a-zA-Z0-9_-]+)/)
+                    : rawText.match(/id=([a-zA-Z0-9_-]+)/);
+
+                if (idMatch) {
+                    try {
+                        const baseUrl = isKurodot ? "https://app.kurodot.io/api/exhibit" : "https://www.fu-design.com/api/exhibit";
+                        showAgentConsoleMessage('color-pm', `PM: Fetching exhibition data directly...`, 2000, 20, '📡');
+                        
+                        const apiTarget = `${baseUrl}?id=${idMatch[1]}`;
+                        const apiResp = await fetch(apiTarget);
+                        if (apiResp.ok) {
+                            const data = await apiResp.json();
+                            // Handle potential nested structure
+                            const checkData = data.exhibition || data.ex_title || data.title ? data : null;
+                            if (checkData) {
+                                exhibitionData = data;
+                                console.log('%c[PM]%c Browser-side fetch succeeded.', 'color:#f1a456;font-weight:bold;', 'color:#555');
+                                showAgentConsoleMessage('color-pm', `PM: Data fetched successfully via browser!`, 2000, 20, '✅');
+                            }
+                        } else {
+                            console.warn(`[PM] Browser fetch returned status ${apiResp.status}`);
+                        }
+                    } catch(e) {
+                        console.warn('[PM] Browser-side fetch failed (CORS or network):', e);
+                        showAgentConsoleMessage('color-pm', `PM: Browser fetch blocked (CORS). AI will retry...`, 2000, 20, '⚠️');
+                    }
+                }
+            }
+
+            try {
+                const response = await fetch('/api/start_curation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: rawText, exhibition_data: exhibitionData })
+                });
+
+                if(response.ok) {
+                    const data = await response.json();
+                    window._currentJobId = data.job_id;
+                    // Reset content flags so new exhibition data overwrites existing artboard
+                    // Keep _bannerSpawned true if artboard already exists to preserve layout/style
+                    window._imageSpawned = false;
+                    window._textSpawned = false;
+                    if (!document.getElementById('banner-artboard')) {
+                        window._bannerSpawned = false;
+                    }
+                    pollBackendStatus(data.job_id);
+                    markNoteCompleted(noteElement);
+                } else {
+                    showAgentConsoleMessage('color-pm', '⚠️ FastAPI Connection Failed.', 2000);
+                    console.error('pm error:', response.status);
+                }
+            } catch(e) {
+                console.error('Connection Exception:', e);
+                showAgentConsoleMessage('color-pm', '⚠️ Connection Error: ' + e.message, 2000);
+            }
+        }
+
+        function startStandaloneTaskPoller() {
+            if (window._standalonePollerActive) return;
+            window._standalonePollerActive = true;
+            console.log("%c[STANDALONE POLLER]%c Monitoring hub for manual tasks...", "color: #f1a456; font-weight:bold;", "color:#555");
+            
+            const interval = setInterval(async () => {
+                const res = await fetch(`/api/job/manual-task`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.pending_tasks && data.pending_tasks.length > 0) {
+                        data.pending_tasks.forEach(task => {
+                            if (task.role === 'tech' && task.status === 'scheduled') {
+                                if (window._pendingTechNote) {
+                                    triggerRevision('Tech Producer', window._pendingTechInstructions, window._pendingTechNote);
+                                    fetch(`/api/job/manual-task/task/${task.id}/status?status=running`, { method: 'POST' });
+                                    window._pendingTechNote = null;
+                                    window._pendingTechInstructions = null;
+                                    
+                                    // If no more tasks, we can eventually stop this poller
+                                    clearInterval(interval);
+                                    window._standalonePollerActive = false;
+                                }
+                            }
+                        });
+                    }
+                }
+            }, 1000);
+        }
+
+        window._bannerSpawned = false;
+        window._imageSpawned = false;
+        window._textSpawned = false;
+
+        async function pollBackendStatus(jobId) {
+             const colorMapping = {
+                'project-manager': 'pm',
+                'analyst': 'analyst',
+                'editor': 'editor',
+                'vi-designer': 'vi',
+                'tech-producer': 'tech'
+            };
+
+            const pollInterval = setInterval(async () => {
+                const res = await fetch(`/api/job/${jobId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    // --- Handle Scheduled Tasks from Logger Agent ---
+                    if (data.pending_tasks && data.pending_tasks.length > 0) {
+                        data.pending_tasks.forEach(task => {
+                            if (task.role === 'tech' && task.status === 'scheduled') {
+                                // Pick up the pending tech task
+                                if (window._pendingTechNote) {
+                                    triggerRevision('Tech Producer', window._pendingTechInstructions, window._pendingTechNote);
+                                    
+                                    // Notify backend that task is running
+                                    fetch(`/api/job/${jobId}/task/${task.id}/status?status=running`, { method: 'POST' });
+                                    
+                                    // Clean up local temp refs
+                                    window._pendingTechNote = null;
+                                    window._pendingTechInstructions = null;
+                                }
+                            }
+                        });
+                    }
+
+                    if(data.logs && data.logs.length > 0) {
+                        const lastLog = data.logs[data.logs.length - 1];
+                        if(window._lastLog !== lastLog) {
+                            window._lastLog = lastLog;
+                            let agentMatch = Object.keys(colorMapping).find(k => lastLog.includes(k) || lastLog.toLowerCase().includes(k.replace('-', ' ')));
+                            let color = agentMatch ? `color-${colorMapping[agentMatch]}` : 'color-pm';
+                            showAgentConsoleMessage(color, lastLog, 2500, 20);
+                        }
+                    }
+
+                    // Handle automatic dismissal of completed recommendations
+                    if (data.dismiss_ids && data.dismiss_ids.length > 0) {
+                        data.dismiss_ids.forEach(id => {
+                            const noteToDismiss = document.querySelector(`.sticky-note[data-recommendation-id="${id}"]`);
+                            if (noteToDismiss && !noteToDismiss.classList.contains('animate-out')) {
+                                console.log(`[Hub] Auto-dismissing completed recommendation: ${id}`);
+                                noteToDismiss.classList.add('animate-out');
+                                setTimeout(() => noteToDismiss.remove(), 600);
+                                
+                                // Also ensure the localized recommendation state is updated
+                                if (!window._appliedRecommendations.includes(id)) {
+                                    window._appliedRecommendations.push(id);
+                                }
+                            }
+                        });
+                        // Clear the local dismiss list once handled
+                        data.dismiss_ids = []; 
+                    }
+
+                    for (const [agentName, state] of Object.entries(data.agents)) {
+                        const shortName = colorMapping[agentName];
+                        if(!shortName) continue;
+                        const dot = document.querySelector(`.color-${shortName}`);
+                        if (dot) {
+                            dot.classList.remove('state-idle', 'state-executing', 'state-completed');
+                            if (state === "Received" || state === "Executing") {
+                                dot.classList.add('state-executing'); 
+                                dot.style.opacity = (state === "Received") ? '0.5' : '1';
+                            } else if (state === "Completed") {
+                                dot.style.opacity = '1';
+                                dot.classList.add('state-completed');
+                            } else {
+                                dot.style.opacity = '1';
+                                dot.classList.add('state-idle');
+                            }
+                        }
+                    }
+
+                    // Strictly division of labor based on Backend Flags - Cascading fixes missed polling states!
+                    if (!window._bannerSpawned && ["designer_white_frame", "designer_add_image", "editor_add_text"].includes(data.current_step)) {
+                        window._bannerSpawned = true;
+                        spawnCollaborativeBanner(data.design_shape || 'square');
+                    }
+                    if (!window._imageSpawned && ["designer_add_image", "editor_add_text"].includes(data.current_step)) {
+                        window._imageSpawned = true;
+                        setTimeout(() => addBannerImage(data.ex_img_url), 100);
+                    }
+                    if (!window._textSpawned && ["editor_add_text"].includes(data.current_step)) {
+                        window._textSpawned = true;
+                        const extra = {
+                            artist: data.ex_artist,
+                            venue: data.ex_venue,
+                            date: data.ex_date,
+                            count: data.ex_artworks_count,
+                            visitors: data.ex_visitors
+                        };
+                        setTimeout(() => addBannerTypography(data.ex_title, data.ex_subtitle, data.ex_description, extra), 800);
+                    }
+
+                        if (data.status === 'finished' || data.status === 'error') {
+                            clearInterval(pollInterval);
+                            
+                            // 延遲一段時間觸發 Analyst 的自主建議 (Proactive Insight)
+                            // 修正：只有在第一次完成（初始畫布生成）時才觸發建議，避免每次修改後重複出現
+                            if (data.status === 'finished' && !window._proactiveTriggered) {
+                                window._proactiveTriggered = true;
+                                setTimeout(() => {
+                                    triggerProactiveInsight();
+                                }, 3000);
+                            }
+                        }
+                    }
+                }, 800);
+            }
+
+            // --- Proactive Interaction Logic ---
+            window._appliedRecommendations = []; // 初始化已執行建議的記憶庫
+            window._proactiveTriggered = false; // 紀錄是否已經觸發過主導建議
+
+            function triggerProactiveInsight() {
+                const analystDot = document.querySelector('.color-analyst');
+                if (!analystDot) return;
+
+                // 找尋還沒執行過的建議
+                const canvas = document.getElementById('banner-artboard');
+                const isSquare = canvas ? (canvas.offsetWidth === canvas.offsetHeight) : false;
+                
+                const allInsights = [
+                    { id: 'ratio_4_5_dark', text: "Based on 80% mobile traffic: Recommend VI Designer to update layout to 4:5 ratio and Dark Mode for better visibility." },
+                    { id: 'shorten_text', text: "Content Analysis: Engagement drops on long descriptions. Recommend Editorial to shorten the text by 30%." }
+                ];
+
+                // 過濾掉已經在記憶庫中的建議
+                const availableInsights = allInsights.filter(insight => !window._appliedRecommendations.includes(insight.id));
+                
+                if (availableInsights.length === 0) {
+                    // 如果所有建議都執行過了，就安靜不說話
+                    return;
+                }
+
+                // 優先權邏輯：如果是首個建議且內容包含了 Dark Mode/Ratio
+                let selectedInsightObj = availableInsights.find(i => i.id === 'ratio_4_5_dark') || availableInsights[0];
+
+                // 1. Analyst 亮起紅點通知
+                analystDot.classList.remove('state-idle', 'state-completed');
+                analystDot.classList.add('state-notice');
+                showAgentConsoleMessage('color-analyst', 'Analyst is generating data-driven feedback...', 3000, 30, '🚨');
+
+                // 2. 幾秒後生成一個 Unassigned (White) Note，代表交由 PM 決策
+                setTimeout(() => {
+                    const canvas = document.getElementById('banner-artboard');
+                    let targetX = window.innerWidth / 2;
+                    let targetY = window.innerHeight / 2;
+                    
+                    if (canvas) {
+                        const rect = canvas.getBoundingClientRect();
+                        targetX = rect.right - 100;
+                        targetY = rect.top + 50;
+                    }
+                    
+                    const pos = getSafePosition(targetX, targetY);
+
+                    // 生成白色 Note (Unassigned)，並標註來自 Analyst，交給 Chief Curator (User) 決定
+                    const roleName = 'Unassigned (Chief Curator)';
+                    const bgColor = '#fefefe';
+                    
+                    const newNote = document.createElement('div');
+                    newNote.className = 'sticky-note animate-in light-theme';
+                    newNote.style.backgroundColor = bgColor;
+                    newNote.style.left = `${pos.x}px`;
+                    newNote.style.top = `${pos.y}px`;
+                    newNote.style.zIndex = ++zIndexCounter;
+                    newNote.dataset.recommendationId = selectedInsightObj.id; // 記錄 ID
+
+                    newNote.innerHTML = `
+                        <div class="note-header" style="cursor: move;">
+                            <span class="delete-btn">✕</span>
+                        </div>
+                        <div style="font-size: 9px; color: #5062c8; font-weight: 800; margin-bottom: 8px; letter-spacing: 1px;">ANALYST RECOMMENDATION</div>
+                        <div class="note-content" contenteditable="true">${selectedInsightObj.text}</div>
+                        <div class="note-footer" style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 15px;">
+                            <button class="dismiss-btn" style="background: none; border: 1px solid #ddd; border-radius: 4px; font-size: 10px; padding: 4px 10px; cursor: pointer; color: #888; transition: all 0.2s;">Dismiss</button>
+                            <button class="apply-btn" style="background: #5062c8; border: none; border-radius: 4px; font-size: 10px; padding: 4px 12px; cursor: pointer; color: white; font-weight: 700; transition: all 0.2s;">Apply</button>
+                        </div>
+                    `;
+                    
+                    canvasBoard.appendChild(newNote);
+                    makeDraggable(newNote);
+
+                    // 綁定 Apply 按鈕
+                    newNote.querySelector('.apply-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const contentDiv = newNote.querySelector('.note-content');
+                        const text = contentDiv.innerText.trim();
+                        
+                        // 視覺效果：隱藏按鈕
+                        newNote.querySelector('.note-footer').style.opacity = '0';
+                        
+                        // 觸發 PM 邏輯 (因為 Recommendation 通常需要 PM 協調各 Agent)
+                        processTask(text, newNote);
+                        
+                        const recId = newNote.dataset.recommendationId;
+                        if (recId && !window._appliedRecommendations.includes(recId)) {
+                            window._appliedRecommendations.push(recId);
+                        }
+                    });
+
+                    // 綁定 Dismiss 按鈕
+                    newNote.querySelector('.dismiss-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const recId = newNote.dataset.recommendationId;
+                        if (recId && !window._appliedRecommendations.includes(recId)) {
+                            window._appliedRecommendations.push(recId);
+                        }
+                        
+                        // 視覺效果：淡出並刪除
+                        newNote.style.opacity = '0';
+                        newNote.style.transform = 'scale(0.9)';
+                        setTimeout(() => {
+                            newNote.remove();
+                        }, 500);
+
+                        showAgentConsoleMessage('color-analyst', 'Recommendation dismissed.', 3000, 30, '📁');
+
+                        const analystDot = document.querySelector('.color-analyst');
+                        if (analystDot) {
+                            analystDot.classList.remove('state-notice');
+                            analystDot.classList.add('state-idle');
+                        }
+                    });
+
+                    // 綁定 X 刪除按鈕，點擊後清除 Analyst 紅點
+                    newNote.querySelector('.delete-btn').addEventListener('click', () => {
+                        const recId = newNote.dataset.recommendationId;
+                        if (recId && !window._appliedRecommendations.includes(recId)) {
+                            window._appliedRecommendations.push(recId);
+                        }
+                        newNote.remove();
+                        const analystDot = document.querySelector('.color-analyst');
+                        if (analystDot) {
+                            analystDot.classList.remove('state-notice');
+                            analystDot.classList.add('state-idle');
+                        }
+                    });
+
+                    // 重新綁定事件：當 Chief Curator 下達決定（Blur 或 Enter）
+                    const contentDiv = newNote.querySelector('.note-content');
+                    
+                    contentDiv.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            this.blur();
+                        }
+                    });
+
+                    contentDiv.addEventListener('blur', function() {
+                        const text = this.innerText.trim();
+                        if (text.length > 3 && !this.dataset.pmTriggered) {
+                            this.dataset.pmTriggered = "true";
+                            
+                            // Define detection logic inside the blur handler
+                            const isDesignerJob = text.toLowerCase().includes('designer') || text.includes('4:5') || text.includes('dark');
+                            const isEditorJob = text.toLowerCase().includes('editor') || text.toLowerCase().includes('shorten');
+                            const isTechJob = text.toLowerCase().includes('export') || text.toLowerCase().includes('copy') || text.toLowerCase().includes('clipboard');
+
+                            // 記錄到記憶庫中，下次不再建議
+                            const recId = newNote.dataset.recommendationId;
+                            if (recId && !window._appliedRecommendations.includes(recId)) {
+                                window._appliedRecommendations.push(recId);
+                            }
+
+                            // 視覺化回饋：顯示 PM 收到指令並開始分派工作
+                            showAgentConsoleMessage('color-pm', 'Chief Curator approved! PM is now orchestrating...', 4000, 30, '🔥');
+                            
+                            // PM logic: If it's a Tech Job (Export/Copy), ensure it waits for any active design/editorial work
+                            if (isTechJob) {
+                                const activeDots = document.querySelectorAll('.state-executing:not(.color-tech):not(.color-pm), .state-completed:not(.color-tech):not(.color-pm)');
+                                if (activeDots.length > 0) {
+                                    showAgentConsoleMessage('color-pm', 'Waiting for final design refinements before export...', 3000, 30, '⏳');
+                                    setTimeout(() => {
+                                        processTask(text, newNote);
+                                        triggerRevision('Tech Producer', text, newNote);
+                                    }, 2000); // 2s buffer for layout to settle
+                                    return;
+                                }
+                            }
+
+                            // 呼叫 PM 的 Orchestrator 進行後續分派
+                            processTask(text, newNote);
+
+                            if (isDesignerJob) {
+                                triggerRevision('VI Designer', text, newNote);
+                            } else if (isEditorJob) {
+                                triggerRevision('Editorial', text, newNote);
+                            } else {
+                                // If it's a generic command, also mark as complete after a while
+                                setTimeout(() => markNoteCompleted(newNote), 3000);
+                            }
+
+                            // 決策下達後，恢復 Analyst 狀態
+                            const analystDot = document.querySelector('.color-analyst');
+                            if (analystDot) {
+                                analystDot.classList.remove('state-notice');
+                                analystDot.classList.add('state-idle');
+                            }
+                        }
+                    });
+
+                    showAgentConsoleMessage('color-analyst', 'Recommendation passed to Chief Curator!', 4000, 30, '🎁');
+                }, 4000);
+            }
+        // --- DOM Collaborative Banner Actions ---
+
+        function makeDraggableResult(element, handle) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            handle.onmousedown = dragMouseDown;
+            function dragMouseDown(e) {
+                if(e.target.classList.contains('close-btn')) return;
+                e.preventDefault();
+                zIndexCounter += 10;
+                element.style.zIndex = zIndexCounter;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        function spawnCollaborativeBanner(shape) {
+            if(document.getElementById('collaborative-workspace')) return;
+            
+            const isSquare = shape === 'square';
+            const widthValue = isSquare ? 550 : 900;
+            const heightValue = isSquare ? 550 : 500;
+            
+            const panel = document.createElement('div');
+            panel.id = 'collaborative-workspace';
+            panel.className = 'result-panel animate-in';
+            
+            // Calculate final center position
+            const finalLeft = (window.innerWidth - widthValue) / 2;
+            const finalTop = (window.innerHeight - heightValue) / 2;
+            
+            panel.style.left = finalLeft + 'px';
+            panel.style.top = finalTop + 'px';
+            panel.style.width = widthValue + 'px';
+            panel.style.height = heightValue + 'px';
+            panel.style.backgroundColor = '#fff';
+            panel.style.position = 'absolute';
+            panel.style.overflow = 'hidden';
+            panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)';
+            panel.style.zIndex = '5';
+
+            // Initial call to Lucide if icons are in base HTML
+            setTimeout(() => { if(window.lucide) window.lucide.createIcons(); }, 10);
+            
+            // Animation trigger: Expand from origin (center in this CSS, visually expanding outwards)
+            setTimeout(() => {
+                panel.style.width = widthValue + 'px';
+                panel.style.height = heightValue + 'px';
+            }, 100);
+
+            const flexDirection = isSquare ? 'column' : 'row';
+            const textAreaWidth = isSquare ? '100%' : '55%'; // Increase text area slightly for landscape
+            const textAreaHeight = isSquare ? '45%' : '100%'; // Increase text area for square/3:4
+            const imgAreaWidth = isSquare ? '100%' : '45%';
+            const imgAreaHeight = isSquare ? '55%' : '100%';
+
+            // Padding and font scale based on size
+            const dynamicPadding = isSquare ? (widthValue * 0.08) + 'px' : '40px';
+            const dynamicFontSize = isSquare ? (widthValue * 0.08) + 'px' : '42px';
+            const dynamicSubfontSize = isSquare ? (widthValue * 0.045) + 'px' : '18px';
+            const dynamicMetaSize = isSquare ? (widthValue * 0.03) + 'px' : '13px';
+            const dynamicDescSize = isSquare ? (widthValue * 0.035) + 'px' : '14px';
+
+            panel.innerHTML = `
+                <div class="result-content" id="banner-artboard" style="background: #ffffff; width: ${widthValue}px; height: ${heightValue}px; position:relative; overflow:hidden; display:flex; flex-direction: ${flexDirection}; transition: all 0.5s;">
+                    
+                    <div id="banner-img-area" style="width: ${imgAreaWidth}; height: ${imgAreaHeight}; position:relative; opacity: 1; transition: opacity 1s, transform 1s; z-index:1; overflow:hidden;">
+                        <div id="banner-img-bg" style="position:absolute; width:100%; height:100%; background: repeating-linear-gradient(45deg, #f7f7f7, #f7f7f7 10px, #ececec 10px, #ececec 20px); transition: filter 0.8s, transform 0.8s; opacity: 0.1;"></div>
+                        <div id="banner-img-icon" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#aaa; font-weight:500; display:flex; flex-direction:column; align-items:center; gap:12px; opacity: 0.4;">
+                            <i data-lucide="image" style="width: 48px; height: 48px; stroke-width: 1.5;"></i>
+                            <span style="letter-spacing: 1px; font-size: 12px; text-transform: uppercase;">Visual Outline</span>
+                        </div>
+                    </div>
+
+                    <div id="banner-text-area" style="width: ${textAreaWidth}; height: ${textAreaHeight}; padding: ${dynamicPadding}; display:flex; flex-direction:column; justify-content:center; box-sizing: border-box; opacity: 1; transition: opacity 1s, transform 1s; z-index:2; background:#fff;">
+                        <h1 id="banner-headline" style="font-size: ${dynamicFontSize}; font-weight: 800; margin:0 0 10px 0; color:#222; font-family:sans-serif; line-height:1.1; letter-spacing: -1px; transition: all 0.4s;"></h1>
+                        <p id="banner-subtext" style="font-size: ${dynamicSubfontSize}; color:#444; font-weight: 500; margin:0 0 16px 0; line-height:1.4; transition: all 0.4s;"></p>
+                        
+                        <div id="banner-meta" style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; font-size: ${dynamicMetaSize}; font-weight: 500; color: #666; transition: all 0.4s; opacity: 0; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="user" style="width: 14px; height: 14px; color: #888;"></i>
+                                <span id="banner-artist"></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="map-pin" style="width: 14px; height: 14px; color: #888;"></i>
+                                <span id="banner-venue"></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="calendar" style="width: 14px; height: 14px; color: #888;"></i>
+                                <span id="banner-date"></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="layers" style="width: 14px; height: 14px; color: #888;"></i>
+                                <span id="banner-count"></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <i data-lucide="trending-up" style="width: 14px; height: 14px; color: #888;"></i>
+                                <span id="banner-stats" style="color: #666; font-weight: 500;"></span>
+                            </div>
+                        </div>
+
+                        <p id="banner-desc" style="font-size: ${dynamicDescSize}; color:#666; font-style: italic; margin:0; line-height:1.5; padding-top: 10px; border-top: 1px solid #eee; transition: all 0.4s;"></p>
+                    </div>
+                    
+                </div>
+            `;
+            
+            document.getElementById('canvas-board').appendChild(panel);
+            // Ensure this banner stays behind all sticky notes (which start at z-index 100)
+            panel.style.zIndex = '10';
+            
+            // Allow double-click to silently remove it, just in case.
+            panel.addEventListener('dblclick', () => {
+                panel.classList.add('animate-out');
+                setTimeout(() => panel.remove(), 300);
+                window._bannerSpawned = false; 
+                window._imageSpawned = false;
+                window._textSpawned = false;
+            });
+        }
+
+        function addBannerImage(imageUrl) {
+            const imgBg = document.getElementById('banner-img-bg');
+            const imgIcon = document.getElementById('banner-img-icon');
+            const imgArea = document.getElementById('banner-img-area');
+            if(imgBg && imgIcon && imgArea) {
+                // Remove border/margin immediately for layout
+                imgArea.style.border = 'none';
+                imgArea.style.margin = '0';
+                
+                // Add skeleton loader
+                const skeleton = document.createElement('div');
+                skeleton.className = 'pulse-skeleton';
+                imgArea.appendChild(skeleton);
+                
+                imgBg.style.opacity = '1';
+                imgIcon.style.opacity = '0';
+                setTimeout(() => {
+                    const cUrl = imageUrl || "https://images.unsplash.com/photo-1541462608143-67571c6738dd?auto=format&fit=crop&q=80&w=800";
+                    imgBg.style.background = `url("${cUrl}") center/cover`;
+                    imgBg.style.opacity = '1';
+                    imgIcon.style.display = 'none';
+                    if (skeleton.parentNode) skeleton.remove();
+                }, 1500);
+            }
+        }
+
+        function addBannerTypography(t, s, d, extra = {}) {
+            const headline = document.getElementById('banner-headline');
+            const subtext = document.getElementById('banner-subtext');
+            const desc = document.getElementById('banner-desc');
+            const textArea = document.getElementById('banner-text-area');
+            const meta = document.getElementById('banner-meta');
+            
+            if(headline && subtext && textArea) {
+                textArea.style.border = 'none';
+                textArea.style.margin = '0';
+                
+                // Remove any existing skeletons first
+                const oldSkeletons = textArea.querySelectorAll('.pulse-skeleton');
+                oldSkeletons.forEach(sk => sk.remove());
+
+                // Create a container for skeletons that mirrors the text structure
+                const skeletonContainer = document.createElement('div');
+                skeletonContainer.className = 'skeleton-text-container';
+                skeletonContainer.style.width = '100%';
+                
+                const hSkeleton = document.createElement('div');
+                hSkeleton.className = 'pulse-skeleton';
+                hSkeleton.style.height = '40px';
+                hSkeleton.style.width = '90%';
+                hSkeleton.style.marginBottom = '24px';
+                
+                const sSkeleton = document.createElement('div');
+                sSkeleton.className = 'pulse-skeleton';
+                sSkeleton.style.height = '20px';
+                sSkeleton.style.width = '70%';
+                sSkeleton.style.marginBottom = '12px';
+
+                const mSkeleton = document.createElement('div');
+                mSkeleton.className = 'pulse-skeleton';
+                mSkeleton.style.height = '14px';
+                mSkeleton.style.width = '50%';
+                mSkeleton.style.marginBottom = '12px';
+
+                const dSkeleton = document.createElement('div');
+                dSkeleton.className = 'pulse-skeleton';
+                dSkeleton.style.height = '14px';
+                dSkeleton.style.width = '100%';
+                dSkeleton.style.marginTop = '20px';
+                
+                skeletonContainer.appendChild(hSkeleton);
+                skeletonContainer.appendChild(sSkeleton);
+                skeletonContainer.appendChild(mSkeleton);
+                skeletonContainer.appendChild(dSkeleton);
+                textArea.appendChild(skeletonContainer);
+                
+                headline.style.opacity = '0';
+                subtext.style.opacity = '0';
+                if(meta) meta.style.opacity = '0';
+                if(desc) desc.style.opacity = '0';
+
+                setTimeout(() => {
+                    skeletonContainer.remove();
+                    
+                    headline.innerText = t || "BAUHAUS\nBLUEPRINT";
+                    subtext.innerText = s || "Exploring the foundations of modernism & geometric purity.";
+                    
+                    if(meta) {
+                        document.getElementById('banner-artist').innerText = extra.artist || "";
+                        document.getElementById('banner-venue').innerText = extra.venue || "";
+                        document.getElementById('banner-date').innerText = extra.date || "";
+                        document.getElementById('banner-count').innerText = extra.count ? `${extra.count} works` : "";
+                        document.getElementById('banner-stats').innerText = extra.visitors ? `${extra.visitors} insights` : "";
+                        
+                        // Hide empty meta containers
+                        ['artist', 'venue', 'date', 'count', 'stats'].forEach(id => {
+                            const el = document.getElementById(`banner-${id}`);
+                            if(el && !el.innerText) {
+                                el.parentElement.style.display = 'none';
+                            } else if(el) {
+                                el.parentElement.style.display = 'flex';
+                            }
+                        });
+
+                        // Trigger Lucide icon replacement
+                        if(window.lucide) {
+                            window.lucide.createIcons();
+                        }
+                        
+                        meta.style.opacity = '1';
+                    }
+
+                    if(desc) {
+                        desc.innerText = d || "Join us as we explore over 20 unique works combining geometric purity and futuristic vision. Exhibition held at Kurodot Gallery, starting October 24th.";
+                        desc.style.borderTop = '1px solid #eee';
+                    }
+                    
+                    headline.style.opacity = '1';
+                    subtext.style.opacity = '1';
+                    if(desc) desc.style.opacity = '1';
+
+                    // Recursive Smart Typography Scaling
+                    setTimeout(() => {
+                        let baseSize = (document.getElementById('banner-artboard').offsetWidth < 450) ? 28 : 42;
+                        headline.style.fontSize = baseSize + 'px';
+                        
+                        function performScaleDown() {
+                            const isOverflowing = textArea.scrollHeight > textArea.clientHeight || 
+                                                 headline.scrollWidth > textArea.clientWidth - 40;
+                            
+                            if (isOverflowing && baseSize > 16) {
+                                baseSize -= 1;
+                                headline.style.fontSize = baseSize + 'px';
+                                requestAnimationFrame(performScaleDown); // Smooth recursive check
+                            }
+                        }
+                        performScaleDown();
+                    }, 100);
+                }, 1800);
+            }
+        }
+        function markNoteCompleted(noteElement) {
+            if (noteElement === null || noteElement === undefined) return;
+            const contentDiv = noteElement.querySelector('.note-content');
+            if (contentDiv) {
+                contentDiv.style.overflow = 'hidden';
+                let checkColor = 'white';
+                let shadowColor = 'rgba(0,0,0,0.2)';
+                
+                // If it's explicitly a white note (PM / Light theme), use PM yellow for visibility; 
+                // ALL other colored notes use white check symbols.
+                const isWhiteNote = noteElement.classList.contains('light-theme');
+
+                if (isWhiteNote) {
+                    checkColor = '#f1a456'; // PM Yellow for contrast on white
+                    shadowColor = 'rgba(0,0,0,0.05)';
+                }
+
+                contentDiv.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100%; font-size: 50px; font-weight: bold; color: ${checkColor}; text-shadow: 0 2px 4px ${shadowColor}; animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">\u2713</div>`;
+                contentDiv.setAttribute('contenteditable', 'false');
+            }
+            
+            // Just transition opacity not rotating
+            noteElement.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+            noteElement.style.pointerEvents = 'none'; // Prevent further interaction
+            
+            setTimeout(() => {
+                noteElement.style.opacity = '0';
+                noteElement.style.transform = 'scale(0.9) translateY(10px)';
+                setTimeout(() => {
+                    if (noteElement.parentNode) {
+                        noteElement.remove();
+                        console.log("%c[SYSTEM]%c Note removed successfully.", "color: #666; font-weight:bold;", "color:#999");
+                    }
+                }, 650);
+            }, 600);
+        }
+        // --- Simulated Agent Triggers from Stickies --- //
+        function triggerRevision(role, instructions, noteElement) {
+            // Log entry for debugging if noteElement is passed
+            if (noteElement) {
+                console.log(`%c[REVISION_START]%c Triggered for ${role} with noteElement.`, "color: #9c27b0; font-weight:bold;", "color:#555");
+            }
+
+            const colorMappingReverse = {
+                'Project Manager': 'pm',
+                'VI Designer': 'vi',
+                'Editorial': 'editor',
+                'Analyst': 'analyst',
+                'Tech Producer': 'tech',
+                'Tech': 'tech',
+                'Producer': 'tech'
+            };
+            const roleShort = colorMappingReverse[role] || (role.toLowerCase().includes('tech') ? 'tech' : 'pm');
+            
+            // Console logging based on role short
+            const colors = {
+                'pm': 'color: #D32F2F', 'vi': 'color: #388E3C', 'editor': 'color: #FBC02D; background:white; font-weight:bold;', 'analyst': 'color: #1976D2', 'tech': 'color: #7B1FA2'
+            };
+            console.log(`%c[${role.toUpperCase()} REVISION]%c ${instructions}`, `${colors[roleShort]}; font-weight:bold;`, 'color:#555');
+
+            const dot = document.querySelector(`.color-${roleShort}`);
+            if (dot) {
+                dot.classList.replace('state-idle', 'state-executing');
+                dot.classList.replace('state-completed', 'state-executing');
+            }
+
+            // 1) Editor logic (translate text / append info)
+            if (role.toLowerCase().includes('editor') || role.toLowerCase().includes('editorial')) {
+                const isJapanese = instructions.toLowerCase().includes('日文') || instructions.toLowerCase().includes('japanese');
+                const isChinese = instructions.toLowerCase().includes('中文') || instructions.toLowerCase().includes('chinese') || instructions.toLowerCase().includes('繁體');
+                const isEnglish = instructions.toLowerCase().includes('英文') || instructions.toLowerCase().includes('english');
+                const isMoreText = instructions.toLowerCase().includes('more') || instructions.includes('多') || instructions.includes('加');
+
+                showAgentConsoleMessage(`color-${roleShort}`, `Editorial is updating context for: "${instructions}"...`, 3000, 20);
+                setTimeout(() => {
+                    const headline = document.getElementById('banner-headline');
+                    const subtext = document.getElementById('banner-subtext');
+                    const desc = document.getElementById('banner-desc');
+                    // Always use original artist name — never translate it
+                    const artistNameEl = document.getElementById('banner-artist');
+                    const artistName = (artistNameEl && artistNameEl.innerText.trim()) ? artistNameEl.innerText.trim() : 'Keng Fu Chu';
+                    
+                    if(headline && subtext) {
+                        // Fade out for transition
+                        headline.style.opacity = '0.3';
+                        subtext.style.opacity = '0.3';
+                        if(desc) desc.style.opacity = '0.3';
+
+                        setTimeout(() => {
+                            const currentH = headline.innerText.toLowerCase();
+                            
+                            // Specific check for "more text" logic
+                            if (isMoreText && desc) {
+                                let newInfo = "";
+                                if (isJapanese) newInfo = " この展示は、デジタル時代における表現の限界に挑戦し、新たな視覚的体験を提供します。";
+                                else if (isChinese) newInfo = " 這場數位展覽挑戰了當代藝術的表達邊界，旨在為觀眾帶來前所未有的視覺饗宴與感官共鳴。";
+                                else newInfo = " This digital exhibition challenges the boundaries of contemporary expression, offering an unprecedented visual journey for global audiences.";
+                                
+                                // Append if not already there
+                                if (!desc.innerText.includes(newInfo.trim())) {
+                                    desc.innerText += newInfo;
+                                    desc.style.display = 'block';
+                                    desc.style.webkitLineClamp = 'none'; // Allow more text
+                                }
+                            }
+
+                            if (isJapanese) {
+                                if(currentH.includes("furobot") || currentH.includes("pop art")) {
+                                    headline.innerText = "FUROBOT";
+                                    subtext.innerText = "東洋と西洋のポップアートの対話";
+                                    if(desc) {
+                                        desc.innerText = `今週金曜日から kurodot.io で開催される、${artistName}による10点の独占的な傑作。人間と機械の相互作用を再定義します。`;
+                                        desc.style.borderTop = '1px solid #eee';
+                                    }
+                                } else if(currentH.includes("snowday") || currentH.includes("雪")) {
+                                    headline.innerText = "スノーデイ：次元を超えて";
+                                    subtext.innerText = "インクから物質へ，物質から機械知能へ";
+                                } else if(currentH.includes("bauhaus") || currentH.includes("藍圖") || currentH.includes("blueprint")) {
+                                    headline.innerText = "バウハウスの設計図";
+                                    subtext.innerText = "モダニズムと幾何學的純粋さの基礎を探求する。";
+                                } else {
+                                    headline.innerText = "次元を超越する展示";
+                                    subtext.innerText = "デジタルツインによる空間と構造の再構築";
+                                    if(desc) {
+                                        desc.innerText = "オンライン限定の統一された空間體驗。現代美術の新たな対話探求。";
+                                        desc.style.borderTop = '1px solid #eee';
+                                    }
+                                }
+                            } 
+                            else if (isChinese) {
+                                if(currentH.includes("furobot") || currentH.includes("pop art")) {
+                                    headline.innerText = "FUROBOT";
+                                    subtext.innerText = "一場東西方波普藝術的對話";
+                                    if(desc) {
+                                        desc.innerText = `本週五起在 kurodot.io 展出，由 ${artistName} 創作的10件獨家傑作。這場策展重新定義了人類與機器之間的互動。`;
+                                        desc.style.borderTop = '1px solid #eee';
+                                    }
+                                } else if(currentH.includes("snowday") || currentH.includes("次元")) {
+                                    headline.innerText = "雪日：跨越維度的對話";
+                                    subtext.innerText = "從墨水到物質，從物質到機器智能";
+                                } else if(currentH.includes("bauhaus") || currentH.includes("設計圖")) {
+                                    headline.innerText = "包浩斯藍圖";
+                                    subtext.innerText = "探索現代主義與幾何純粹的基石。";
+                                } else {
+                                    headline.innerText = "超越次元的展覽";
+                                    subtext.innerText = "通過數位孿生技術重構空間與結構";
+                                    if(desc) {
+                                        desc.innerText = "一場專屬於線上空間的沉浸式體驗，開啟當代藝術的新對話。";
+                                        desc.style.borderTop = '1px solid #eee';
+                                    }
+                                }
+                            }
+                            else if (isEnglish) {
+                                if(currentH.includes("次元") || currentH.includes("超越")) {
+                                    headline.innerText = "DIMENSIONLESS EXHIBITION";
+                                    subtext.innerText = "Reconstructing space and structure via digital twin.";
+                                    if(desc) {
+                                        desc.innerText = "An exclusive online unified spatial experience exploring new dialogues in contemporary art.";
+                                        desc.style.borderTop = '1px solid #eee';
+                                    }
+                                } else if(currentH.includes("furobot") || currentH.includes("pop art")) {
+                                    headline.innerText = "FUROBOT";
+                                    subtext.innerText = "A Pop Art Dialogue Between East and West";
+                                    if(desc) {
+                                        desc.innerText = `Experience an incredible journey starting this Friday at kurodot.io. Featuring 10 exclusive masterpieces by ${artistName}, this curation redefines the interaction between human and machine.`;
+                                        desc.style.borderTop = '1px solid #eee';
+                                    }
+                                } else {
+                                    headline.innerText = "SNOWDAY: BEYOND DIMENSIONS";
+                                    subtext.innerText = "From ink to matter, from matter to machine intelligence.";
+                                }
+                            }
+                            else if (!isMoreText) {
+                                // Only change headline if it's NOT just a "more text" request
+                                headline.innerText = instructions.length > 30 ? instructions.substring(0,30) + "..." : instructions;
+                            }
+
+                            headline.style.opacity = '1';
+                            subtext.style.opacity = '1';
+                            if(desc) desc.style.opacity = '1';
+                            
+                            if(dot) dot.classList.replace('state-executing', 'state-completed');
+                            markNoteCompleted(noteElement);
+                        }, 500);
+                    }
+                }, 1500);
+            } 
+            // 2) Designer logic (change image/style)
+            else if (role.toLowerCase().includes('designer') || role === 'VI Designer') {
+                showAgentConsoleMessage(`color-${roleShort}`, `VI Designer is applying advanced layout for: "${instructions}"...`, 3000, 20);
+                setTimeout(() => {
+                    const canvas = document.getElementById('banner-artboard');
+                    const workspace = document.getElementById('collaborative-workspace');
+                    const imgArea = document.getElementById('banner-img-area');
+                    const textArea = document.getElementById('banner-text-area');
+                    const imgBg = document.getElementById('banner-img-bg');
+                    const headline = document.getElementById('banner-headline');
+                    const subtext = document.getElementById('banner-subtext');
+                    const meta = document.getElementById('banner-meta');
+                    const desc = document.getElementById('banner-desc');
+
+                    let ratioMatch = instructions.match(/(\d+):(\d+)/);
+                    if (instructions.toLowerCase().includes('square')) ratioMatch = [null, '1', '1'];
+                    
+                    // Analyst merge logic: 4:5 + Dark Mode
+                    const isDarkMode = instructions.toLowerCase().includes('dark mode') || instructions.includes('深色');
+                    const is45Ratio = instructions.includes('4:5');
+
+                    // Full Background Layout logic
+                    const isFullBg = instructions.includes('背景') || instructions.includes('background') || instructions.includes('overlay') || instructions.includes('滿版');
+
+                    if (isFullBg && canvas && imgArea && textArea) {
+                        // Full Background Style
+                        canvas.style.display = 'block';
+                        imgArea.style.position = 'absolute';
+                        imgArea.style.top = '0';
+                        imgArea.style.left = '0';
+                        imgArea.style.width = '100%';
+                        imgArea.style.height = '100%';
+                        imgArea.style.margin = '0';
+                        imgArea.style.zIndex = '1';
+                        
+                        textArea.style.position = 'absolute';
+                        textArea.style.top = '0';
+                        textArea.style.left = '0';
+                        textArea.style.width = '100%';
+                        textArea.style.height = '100%';
+                        textArea.style.zIndex = '2';
+                        textArea.style.background = 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 60%, rgba(0,0,0,0.4) 100%)';
+                        textArea.style.padding = '60px';
+                        textArea.style.boxSizing = 'border-box'; // Ensure padding doesn't push width/height
+                        textArea.style.display = 'flex';
+                        textArea.style.flexDirection = 'column';
+                        textArea.style.justifyContent = 'flex-end';
+                        textArea.style.margin = '0';
+
+                        if(headline) headline.style.color = '#fff';
+                        if(subtext) subtext.style.color = 'rgba(255,255,255,0.9)';
+                        if(meta) {
+                            meta.style.color = 'rgba(255,255,255,0.7)';
+                            meta.querySelectorAll('i').forEach(i => i.style.color = 'rgba(255,255,255,0.6)');
+                            const stats = document.getElementById('banner-stats');
+                            if(stats) stats.style.color = '#fff';
+                            const statsIcon = meta.querySelector('[data-lucide="trending-up"]');
+                            if(statsIcon) statsIcon.style.color = '#fff';
+                        }
+                        if(desc) {
+                            desc.style.color = 'rgba(255,255,255,0.6)';
+                            desc.style.borderTop = '1px solid rgba(255,255,255,0.2)';
+                        }
+                    } else if (ratioMatch && canvas) {
+                        // Split Layout Style
+                        canvas.style.display = 'flex';
+                        if(imgArea) {
+                            imgArea.style.position = 'relative';
+                            imgArea.style.zIndex = '1';
+                            imgArea.style.margin = '10px';
+                        }
+                        if(textArea) {
+                            textArea.style.position = 'relative';
+                            textArea.style.zIndex = '2';
+                            textArea.style.background = 'transparent';
+                            textArea.style.justifyContent = 'center';
+                            textArea.style.margin = '10px';
+                        }
+
+                        let wRatio = parseFloat(ratioMatch[1]);
+                        let hRatio = parseFloat(ratioMatch[2]);
+                        let newW, newH, flexDir, imgW, imgH, txtW, txtH;
+                        
+                        const maxWidth = 1050; 
+                        const maxHeight = 800; 
+                        let ratio = wRatio / hRatio;
+
+                        if (ratio > 1) {
+                            // Landscape
+                            newW = maxWidth;
+                            newH = Math.round(maxWidth / ratio);
+                            if (newH > 650) { 
+                                newH = 650;
+                                newW = Math.round(650 * ratio);
+                            }
+                            flexDir = 'row';
+                            imgW = '60%'; imgH = '100%';
+                            txtW = '40%'; txtH = '100%';
+                        } else if (ratio < 1) {
+                            // Portrait (e.g., 4:5)
+                            newH = 750; 
+                            newW = Math.round(750 * ratio);
+                            flexDir = 'column';
+                            imgW = '100%'; imgH = '55%'; 
+                            txtW = '100%'; txtH = '45%';
+                            if (newW < 400 && headline) headline.style.fontSize = '28px';
+                        } else {
+                            // Square
+                            newW = 650; newH = 650;
+                            flexDir = 'column';
+                            imgW = '100%'; imgH = '60%';
+                            txtW = '100%'; txtH = '40%';
+                        }
+
+                        // Style fixes for better portrait layout
+                        if (textArea) {
+                            textArea.style.padding = ratio < 1 ? '20px 40px' : '40px';
+                            textArea.style.display = 'flex';
+                            textArea.style.flexDirection = 'column';
+                            textArea.style.justifyContent = 'center';
+                        }
+                        if (imgArea) {
+                            imgArea.style.overflow = 'hidden';
+                            imgArea.style.borderRadius = '8px';
+                            imgArea.style.width = imgW;
+                            imgArea.style.height = imgH;
+                        }
+
+                        // Apply ratio-based sizing with better centering and cleanup
+                        if (is45Ratio || (wRatio && hRatio)) {
+                            // Clear specialized full background positions if they exist
+                            canvas.style.display = 'flex';
+                            imgArea.style.position = 'relative';
+                            textArea.style.position = 'relative';
+                            
+                            let finalW, finalH;
+                            if (is45Ratio) {
+                                finalW = 480;
+                                finalH = 600;
+                            } else {
+                                // Dynamic ratio calculation
+                                let ratio = wRatio / hRatio;
+                                if (ratio > 1) { // Landscape
+                                    finalW = 900;
+                                    finalH = Math.round(900 / ratio);
+                                } else { // Portrait or Square
+                                    finalH = 700;
+                                    finalW = Math.round(700 * ratio);
+                                }
+                            }
+
+                            // Update both canvas and outer workspace to eliminate gaps
+                            canvas.style.width = finalW + 'px';
+                            canvas.style.height = finalH + 'px';
+                            
+                            if (workspace) {
+                                workspace.style.transition = "all 0.8s cubic-bezier(0.16, 1, 0.3, 1)";
+                                workspace.style.width = finalW + 'px';
+                                workspace.style.height = finalH + 'px';
+                                
+                                // FORCE RE-CENTERING: Absolute center based on viewport
+                                workspace.style.left = (window.innerWidth - finalW) / 2 + 'px';
+                                workspace.style.top = (window.innerHeight - finalH) / 2 + 'px';
+                            }
+
+                            // Layout behavior for split
+                            if (finalW > finalH) {
+                                canvas.style.flexDirection = 'row';
+                                imgArea.style.width = '60%'; imgArea.style.height = '100%';
+                                textArea.style.width = '40%'; textArea.style.height = '100%';
+                            } else {
+                                canvas.style.flexDirection = 'column';
+                                imgArea.style.width = '100%'; imgArea.style.height = '50%';
+                                textArea.style.width = '100%'; textArea.style.height = '50%';
+                            }
+                            
+                            // Reset margins and padding to ensure no white gaps
+                            imgArea.style.margin = '0';
+                            textArea.style.margin = '0';
+                            textArea.style.boxSizing = 'border-box';
+                        }
+                    }
+
+                    // Handle Dark Mode logic (Analyst recommendation)
+                    if (isDarkMode && canvas) {
+                        canvas.style.backgroundColor = '#1a1a1b';
+                        if (textArea) textArea.style.backgroundColor = '#1a1a1b';
+                        if (headline) headline.style.color = '#ffffff';
+                        if (subtext) subtext.style.color = '#aaaaaa';
+                        if (desc) {
+                            desc.style.color = '#888888';
+                            desc.style.borderTop = '1px solid #333';
+                        }
+                        const meta = document.getElementById('banner-meta');
+                        if (meta) {
+                            meta.style.color = '#888888';
+                            meta.querySelectorAll('i').forEach(i => i.style.color = '#666');
+                            const stats = document.getElementById('banner-stats');
+                            if (stats) stats.style.color = '#ffffff';
+                        }
+                    }
+
+                    if (canvas) {
+                        const description = document.getElementById('banner-desc');
+                        if (description) {
+                            description.style.display = '-webkit-box';
+                            // Safely determine ratio for clamping
+                            const currentWidth = canvas.offsetWidth;
+                            const currentHeight = canvas.offsetHeight;
+                            const isPortrait = currentHeight > currentWidth;
+                            description.style.webkitLineClamp = isPortrait ? '4' : '3';
+                            description.style.webkitBoxOrient = 'vertical';
+                            description.style.overflow = 'hidden';
+                        }
+                        
+                        // Color styling variations
+                        // Enhanced detection: handle Analyst recommendations or specific style requests
+                        const isDark = instructions.toLowerCase().includes('dark') || 
+                                       instructions.includes('黑') || 
+                                       instructions.toLowerCase().includes('recommend') ||
+                                       instructions.toLowerCase().includes('better visibility');
+                        const isLight = instructions.toLowerCase().includes('light') || instructions.includes('白') || instructions.includes('明亮');
+
+                        if (isDark) {
+                            canvas.style.backgroundColor = '#1a1a1a';
+                            if (headline) headline.style.color = '#ffffff';
+                            const sub = document.getElementById('banner-subtext');
+                            if(sub) sub.style.color = '#cccccc';
+                            const desc = document.getElementById('banner-desc');
+                            if(desc) desc.style.color = '#999999';
+                        } else if (isLight) {
+                            canvas.style.backgroundColor = '#ffffff';
+                            if (headline) headline.style.color = '#222222';
+                            const sub = document.getElementById('banner-subtext');
+                            if(sub) sub.style.color = '#555555';
+                            const desc = document.getElementById('banner-desc');
+                            if(desc) desc.style.color = '#666666';
+                        }
+                        
+                        // Font Style variations
+                        if (instructions.toLowerCase().includes('style') || instructions.includes('字體') || instructions.includes('風格') || instructions.includes('font')) {
+                            const fonts = ['"Helvetica Neue", sans-serif', '"Georgia", serif', '"Courier New", serif', '"Impact", monospace', '"Trebuchet MS", sans-serif', '"Futura", sans-serif', '"Playfair Display", serif', '"Montserrat", sans-serif', '"Bebas Neue", cursive'];
+                            const randomFont = fonts[Math.floor(Math.random() * fonts.length)];
+                            if (headline) headline.style.fontFamily = randomFont;
+                            const sub = document.getElementById('banner-subtext');
+                            if(sub) sub.style.fontFamily = randomFont;
+                        }
+                        
+                        // Automatic Responsive Typography Scaling constraint
+                        setTimeout(() => {
+                            if (headline && textArea) {
+                                // ... EXISTING CODE FOR TYPOGRAPHY ...
+                                headline.style.display = 'block';
+                                headline.style.width = '100%';
+                                headline.style.maxWidth = '100%';
+                                headline.style.wordBreak = 'break-word';
+                                headline.style.overflowWrap = 'break-word';
+                                headline.style.lineHeight = '1.1';
+                                
+                                // Dynamic spacing based on container height
+                                const containerHeight = canvas.offsetHeight;
+                                const containerWidth = canvas.offsetWidth;
+                                const isPortrait = containerHeight > containerWidth;
+                                
+                                // Smart Spacing & Padding
+                                const dynamicPadding = Math.max(20, Math.min(containerWidth * 0.08, 60));
+                                textArea.style.padding = `${dynamicPadding}px`;
+                                
+                                if (subtext) subtext.style.margin = `${dynamicPadding * 0.4}px 0`;
+                                if (meta) meta.style.gap = `${dynamicPadding * 0.5}px`;
+                                if (desc) desc.style.marginTop = `${dynamicPadding * 0.6}px`;
+
+                                // Smart Font Scaling
+                                let fontSize = isPortrait ? (containerWidth * 0.1) : (containerWidth * 0.06);
+                                fontSize = Math.max(24, Math.min(fontSize, 64)); // Clamp
+                                
+                                headline.style.fontSize = fontSize + 'px';
+                                if (subtext) subtext.style.fontSize = (fontSize * 0.45) + 'px';
+                                
+                                // Auto-shrink if still overflowing
+                                let attempts = 0;
+                                while (textArea.scrollHeight > textArea.clientHeight && attempts < 10) {
+                                    fontSize -= 2;
+                                    headline.style.fontSize = fontSize + 'px';
+                                    if (subtext) subtext.style.fontSize = (fontSize * 0.45) + 'px';
+                                    attempts++;
+                                }
+                            }
+                        }, 100);
+
+                        // --- FINAL DISMISSAL FOR DESIGNER ---
+                        if(dot) dot.classList.replace('state-executing', 'state-completed');
+                        console.log("%c[VI DESIGNER]%c Layout complete, marking note as done.", "color: #388E3C; font-weight:bold;", "color:#555");
+                        if (noteElement) {
+                            markNoteCompleted(noteElement);
+                        }
+                    }
+
+                    if (imgBg) {
+                        // Avoid constantly changing image colors randomly on every click
+                        // Only change hue if explicitly asked, otherwise preserve original
+                        if (instructions.includes('filter') || instructions.includes('濾鏡') || instructions.includes('color swap')) {
+                            const randomHue = Math.floor(Math.random() * 360);
+                            imgBg.style.filter = `hue-rotate(${randomHue}deg) contrast(1.3) saturate(1.1)`;
+                            console.log("%c[VI DESIGNER ACTION]%c Applied random hue filter.", "color: #388E3C; font-weight:bold;", "color:#333");
+                        } else {
+                            // Clear filters if simply redefining layout
+                            imgBg.style.filter = "contrast(1.05) saturate(1.05)";
+                        }
+                    }
+
+                    // --- GLOBAL DESIGNER COMPLETION (Outside specific layout blocks) ---
+                    if (dot) dot.classList.replace('state-executing', 'state-completed');
+                    if (noteElement) {
+                        console.log("%c[VI DESIGNER]%c Final completion fallback triggered.", "color: #388E3C; font-weight:bold;", "color:#555");
+                        markNoteCompleted(noteElement);
+                    }
+                }, 1500);
+            }
+            // 3) Tech Producer logic (Export/Print/Clipboard)
+            else if (role.includes('Producer') || role.toLowerCase().includes('tech')) {
+                const isJPG  = instructions.toLowerCase().includes('jpg') || instructions.toLowerCase().includes('jpeg');
+                const isPNG  = instructions.toLowerCase().includes('png');
+                const isPDF  = instructions.toLowerCase().includes('pdf');
+                const isEnd  = instructions.toLowerCase().includes('end');
+                const isCopy = instructions.toLowerCase().includes('copy') || instructions.toLowerCase().includes('clipboard');
+                
+                let formatLabel = isPNG ? 'PNG' : (isPDF ? 'PDF' : (isCopy ? 'Clipboard' : 'JPG'));
+                if (isEnd && !isPNG && !isPDF && !isCopy) formatLabel = 'JPG';
+
+                if (isCopy) {
+                    showAgentConsoleMessage(`color-${roleShort}`, `Tech: Copying layout snapshot to clipboard...`, 3000, 20, '📋');
+                } else {
+                    showAgentConsoleMessage(`color-${roleShort}`, `Tech: Processing final "${formatLabel}" export request...`, 3000, 20, '💾');
+                }
+                setTimeout(() => {
+                    const artboard = document.getElementById('banner-artboard');
+                    if (!artboard) {
+                        showAgentConsoleMessage(`color-${roleShort}`, `⚠️ No layout found to export.`, 3000, 20);
+                        if(dot) dot.classList.replace('state-executing', 'state-completed');
+                        markNoteCompleted(noteElement);
+                        return;
+                    }
+
+                    const finalize = () => {
+                        if(dot) dot.classList.replace('state-executing', 'state-completed');
+                        markNoteCompleted(noteElement);
+                    };
+
+                        // ── Static Clone Engine ──────────────────────────────────────────────
+                        // Builds a fully inlined, SVG-free, transition-free off-screen snapshot.
+                        // Avoids all html2canvas rendering bugs with flex/z-index/SVG icons.
+                        function buildStaticClone() {
+                            const W = artboard.offsetWidth;
+                            const H = artboard.offsetHeight;
+                            const cs = getComputedStyle(artboard);
+                            const bgColor = cs.backgroundColor || '#ffffff';
+                            const flexDir = cs.flexDirection;
+                            const isStack = flexDir === 'column';
+
+                            const wrap = document.createElement('div');
+                            wrap.style.cssText = [
+                                'position:absolute', 'left:-99999px', 'top:0',
+                                `width:${W}px`, `height:${H}px`,
+                                `background:${bgColor}`,
+                                'overflow:hidden',
+                                'display:flex',
+                                `flex-direction:${flexDir}`
+                            ].join(';');
+
+                            const imgAreaEl   = document.getElementById('banner-img-area');
+                            const imgBgEl     = document.getElementById('banner-img-bg');
+                            const textAreaEl  = document.getElementById('banner-text-area');
+                            const headlineEl  = document.getElementById('banner-headline');
+                            const subtextEl   = document.getElementById('banner-subtext');
+                            const descEl      = document.getElementById('banner-desc');
+
+                            // Detect "Full Background" (Overlay) mode
+                            const isOverlay = imgAreaEl && getComputedStyle(imgAreaEl).position === 'absolute';
+
+                            // ── Image panel ──────────────────────────────────────────────
+                            if (imgAreaEl) {
+                                const imgW = imgAreaEl.offsetWidth;
+                                const imgH = imgAreaEl.offsetHeight;
+                                const imgBgImage = imgBgEl ? imgBgEl.style.backgroundImage : '';
+                                
+                                const imgDiv = document.createElement('div');
+                                imgDiv.style.cssText = [
+                                    `width:${imgW}px`, `height:${imgH}px`,
+                                    'flex-shrink:0', 'overflow:hidden', 'position:relative'
+                                ].join(';');
+                                
+                                if (isOverlay) {
+                                    imgDiv.style.position = 'absolute';
+                                    imgDiv.style.top = '0';
+                                    imgDiv.style.left = '0';
+                                    imgDiv.style.zIndex = '1';
+                                }
+
+                                if (imgBgImage && imgBgImage !== 'none' && imgBgImage !== '') {
+                                    imgDiv.style.backgroundImage = imgBgImage;
+                                    imgDiv.style.backgroundSize = 'cover';
+                                    imgDiv.style.backgroundPosition = 'center';
+                                } else {
+                                    imgDiv.style.background = '#ececec';
+                                }
+                                wrap.appendChild(imgDiv);
+                            }
+
+                            // ── Text panel ───────────────────────────────────────────────
+                            if (textAreaEl) {
+                                const txtW    = textAreaEl.offsetWidth;
+                                const txtH    = textAreaEl.offsetHeight;
+                                const tcs     = getComputedStyle(textAreaEl);
+                                const txtPad  = tcs.padding;
+                                const txtBg   = tcs.background || tcs.backgroundColor || 'transparent'; 
+                                const txtJust = tcs.justifyContent;
+
+                                const txtDiv = document.createElement('div');
+                                txtDiv.style.cssText = [
+                                    `width:${txtW}px`, `height:${txtH}px`,
+                                    'flex-shrink:0', 'display:flex', 'flex-direction:column',
+                                    `justify-content:${txtJust}`, `padding:${txtPad}`,
+                                    'box-sizing:border-box', 'overflow:hidden',
+                                    'position:relative'
+                                ].join(';');
+
+                                // Handle Gradients specifically if present in "background"
+                                if (txtBg.includes('gradient')) {
+                                    txtDiv.style.background = txtBg;
+                                } else {
+                                    txtDiv.style.backgroundColor = tcs.backgroundColor;
+                                }
+
+                                if (isOverlay) {
+                                    txtDiv.style.position = 'absolute';
+                                    txtDiv.style.top = '0';
+                                    txtDiv.style.left = '0';
+                                    txtDiv.style.zIndex = '2';
+                                }
+
+                                // Headline
+                                if (headlineEl && headlineEl.innerText.trim()) {
+                                    const hcs = getComputedStyle(headlineEl);
+                                    const h = document.createElement('div');
+                                    h.innerText = headlineEl.innerText;
+                                    h.style.cssText = [
+                                        `font-size:${hcs.fontSize}`, `font-weight:${hcs.fontWeight}`,
+                                        `color:${hcs.color}`, `font-family:${hcs.fontFamily}`,
+                                        `line-height:${hcs.lineHeight}`, `letter-spacing:${hcs.letterSpacing}`,
+                                        'margin:0 0 10px 0', 'white-space:pre-wrap', 'position:relative'
+                                    ].join(';');
+                                    txtDiv.appendChild(h);
+                                }
+
+                                // Subtext
+                                if (subtextEl && subtextEl.innerText.trim()) {
+                                    const scs = getComputedStyle(subtextEl);
+                                    const s = document.createElement('div');
+                                    s.innerText = subtextEl.innerText;
+                                    s.style.cssText = [
+                                        `font-size:${scs.fontSize}`, `font-weight:${scs.fontWeight}`,
+                                        `color:${scs.color}`, `font-family:${scs.fontFamily}`,
+                                        `line-height:${scs.lineHeight}`, 'margin:0 0 16px 0', 'position:relative'
+                                    ].join(';');
+                                    txtDiv.appendChild(s);
+                                }
+
+                                // Meta row
+                                const metaIds = ['artist','venue','date','count','stats'];
+                                const metaEls = metaIds.map(id => document.getElementById(`banner-${id}`));
+                                
+                                if (metaEls.some(el => el && el.innerText.trim())) {
+                                    const mcs = getComputedStyle(document.getElementById('banner-meta'));
+                                    const mRow = document.createElement('div');
+                                    mRow.style.cssText = [
+                                        'display:flex', 'flex-wrap:wrap', 'gap:16px', 'align-items:center',
+                                        'margin-bottom:12px', `font-size:${mcs.fontSize || '13px'}`,
+                                        `font-weight:${mcs.fontWeight}`, `color:${mcs.color}`,
+                                        'font-family:sans-serif', 'position:relative'
+                                    ].join(';');
+                                    
+                                    metaEls.forEach(el => {
+                                        if (!el || !el.innerText.trim()) return;
+                                        
+                                        const itemWrap = document.createElement('div');
+                                        itemWrap.style.cssText = 'display:flex; align-items:center; gap:6px;';
+                                        
+                                        // Try to find if there's an icon before this text
+                                        const icon = el.previousElementSibling;
+                                        if (icon && icon.tagName === 'I' && (icon.getAttribute('data-lucide') || icon.classList.contains('lucide'))) {
+                                            const iconStyle = getComputedStyle(icon);
+                                            const iconSpan = document.createElement('span');
+                                            iconSpan.innerHTML = icon.innerHTML; // SVG content
+                                            iconSpan.style.cssText = [
+                                                `width:${iconStyle.width}`, `height:${iconStyle.height}`,
+                                                `color:${iconStyle.color}`, 'display:flex', 'align-items:center'
+                                            ].join(';');
+                                            itemWrap.appendChild(iconSpan);
+                                        }
+
+                                        const sp = document.createElement('span');
+                                        sp.innerText = el.innerText;
+                                        itemWrap.appendChild(sp);
+                                        mRow.appendChild(itemWrap);
+                                    });
+                                    txtDiv.appendChild(mRow);
+                                }
+
+                                // Description
+                                if (descEl && descEl.innerText.trim()) {
+                                    const dcs = getComputedStyle(descEl);
+                                    const d = document.createElement('div');
+                                    d.innerText = descEl.innerText;
+                                    d.style.cssText = [
+                                        `font-size:${dcs.fontSize}`, `color:${dcs.color}`,
+                                        `font-family:${dcs.fontFamily}`, 'font-style:italic',
+                                        `line-height:${dcs.lineHeight}`, 'margin:0',
+                                        'padding-top:10px', `border-top:${dcs.borderTop}`,
+                                        'position:relative'
+                                    ].join(';');
+                                    txtDiv.appendChild(d);
+                                }
+
+                                wrap.appendChild(txtDiv);
+                            }
+
+                            document.body.appendChild(wrap);
+                            return wrap;
+                        }
+
+                    function doCapture() {
+                        if (typeof html2canvas === 'undefined') {
+                            const script = document.createElement('script');
+                            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                            script.onload = doCapture;
+                            document.head.appendChild(script);
+                            return;
+                        }
+
+                        const W = artboard.offsetWidth;
+                        const H = artboard.offsetHeight;
+                        const staticClone = buildStaticClone();
+
+                        // Flash the live artboard for visual feedback only
+                        artboard.style.outline = '3px solid rgba(255,255,255,0.9)';
+                        setTimeout(() => { artboard.style.outline = ''; }, 600);
+
+                        html2canvas(staticClone, {
+                            useCORS: true,
+                            allowTaint: false,
+                            backgroundColor: getComputedStyle(artboard).backgroundColor || '#ffffff',
+                            scale: 3,
+                            logging: false,
+                            width: W,
+                            height: H
+                        }).then(canvas => {
+                            document.body.removeChild(staticClone);
+
+                            const handleCanvas = (canvas) => {
+                                try {
+                                    const link = document.createElement('a');
+                                    link.style.display = 'none';
+                                    if (isPNG) {
+                                        link.download = `curation_export_${Date.now()}.png`;
+                                        link.href = canvas.toDataURL('image/png');
+                                    } else if (isPDF) {
+                                        link.download = `curation_export_${Date.now()}.pdf`;
+                                        link.href = canvas.toDataURL('image/jpeg', 0.95);
+                                    } else {
+                                        link.download = `curation_export_${Date.now()}.jpg`;
+                                        link.href = canvas.toDataURL('image/jpeg', 0.95);
+                                    }
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    setTimeout(() => { if (link.parentNode) document.body.removeChild(link); }, 100);
+                                    showAgentConsoleMessage(`color-${roleShort}`, `✅ ${formatLabel} exported.`, 4000, 20);
+                                } catch(e) {
+                                    console.error('Export format error:', e);
+                                    showAgentConsoleMessage(`color-${roleShort}`, `⚠️ Format failed. Check Console.`, 4000, 20);
+                                }
+                                finalize();
+                            };
+
+                            if (isCopy) {
+                                canvas.toBlob(blob => {
+                                    const tryClipboard = async () => {
+                                        try {
+                                            if (!window.ClipboardItem) {
+                                                throw new Error("ClipboardItem not supported in this browser");
+                                            }
+                                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                                            showAgentConsoleMessage(`color-${roleShort}`, `✅ Copied to clipboard!`, 4000, 20);
+                                        } catch(err) {
+                                            console.warn('Clipboard write failed, downloading instead:', err);
+                                            showAgentConsoleMessage(`color-${roleShort}`, `⚠️ Clipboard blocked — downloading PNG instead.`, 5000, 20);
+                                            const link = document.createElement('a');
+                                            link.download = `curation_clipboard_${Date.now()}.png`;
+                                            link.href = canvas.toDataURL('image/png');
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            setTimeout(() => { if (link.parentNode) document.body.removeChild(link); }, 100);
+                                        }
+                                        finalize();
+                                    };
+                                    tryClipboard();
+                                }, 'image/png');
+                            } else {
+                                handleCanvas(canvas);
+                            }
+                        }).catch(err => {
+                            if (staticClone.parentNode) document.body.removeChild(staticClone);
+                            console.error('Export error:', err);
+                            showAgentConsoleMessage(`color-${roleShort}`, `⚠️ Export Error. Check Console.`, 4000, 20);
+                            finalize();
+                        });
+                    }
+
+                    doCapture();
+                }, 1000);
+            } else {
+                // If PM role received a URL, treat as a new exhibition curation request
+                const hasUrl = instructions.includes('http://') || instructions.includes('https://');
+                if (hasUrl) {
+                    showAgentConsoleMessage(`color-${roleShort}`, `PM: Detected new exhibition URL. Re-loading data...`, 3000, 30, '🔄');
+                    processTask(instructions, noteElement);
+                } else {
+                    showAgentConsoleMessage(`color-${roleShort}`, `Received note: ${instructions}`, 2000, 20);
+                    setTimeout(() => {
+                        if(dot) dot.classList.replace('state-executing', 'state-completed');
+                        // Ensure the note is marked completed even for unassigned/unknown roles
+                        if (noteElement) markNoteCompleted(noteElement);
+                    }, 1000);
+                }
+            }
+        }
+
+        // Testing Mode Initialization
+        async function initTestingMode() {
+            try {
+                const response = await fetch('/api/settings');
+                const settings = await response.json();
+                
+                if (settings.testing_mode === 1) {
+                    console.log("%c[TEST MODE ACTIVE]", "color: #f1a456; font-weight: bold;", settings);
+                    
+                    // Create a central position for the test note
+                    const x = window.innerWidth / 2 - 130;
+                    const y = window.innerHeight / 2 - 100;
+                    
+                    setTimeout(() => {
+                        const testContent = `${settings.test_instruction}\n\n${settings.test_url}`;
+                        createNewNote(x, y, '#fefefe', 'Unassigned (Chief Curator)', testContent, true);
+                    }, 1000);
+                }
+            } catch (e) {
+                console.warn("Could not fetch settings:", e);
+            }
+        }
+
+        window.addEventListener('load', initTestingMode);
+
+        // --- Live Reload Logic ---
+        function startLiveReload() {
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/api/check_updates');
+                    const data = await res.json();
+                    if (data.updated) {
+                        console.log("%c[LIVE RELOAD]%c Modification detected, refreshing...", "color: #f1a456; font-weight:bold;", "color:#555");
+                        window.location.reload();
+                    }
+                } catch (e) {
+                    // Fail silently
+                }
+            }, 2000); // Check every 2 seconds
+        }
+        startLiveReload();
+</script>
 </body>
 </html>
