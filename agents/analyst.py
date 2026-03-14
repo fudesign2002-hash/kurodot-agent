@@ -1,15 +1,20 @@
 import os
 import requests
 from utils.logger import hub
+import settings
 
-class AudienceAnalystAgent:
+class DataAnalystAgent:
     """
     Audience Analyst Agent:
-    - Connects to Umami Analytics API.
-    - Analyzes real-time traffic to identify most popular artworks.
+    - Personality: "The Scanner" 🔵 - Digital, precise, data-driven.
+    - Animation Style: Matrix Typewriter (Scanline / Digital font).
+    - UI Color: #5062c8 (Blue).
+    - Font Style: 'Courier New', monospace.
+    - Behavior: Connects to Umami API, analyzes traffic, and suggests insights.
     """
     def __init__(self):
-        self.agent_name = "Audience Analyst"
+        self.agent_name = settings.AGENT_ROLES["analyst"]
+        self.personality_emoji = "📡" # Data Analyst's primary emoji for fetching data
         self.umami_url = os.getenv("UMAMI_API_URL", "https://api.umami.is/v1")
         self.umami_token = os.getenv("UMAMI_TOKEN", "dummy_token")
 

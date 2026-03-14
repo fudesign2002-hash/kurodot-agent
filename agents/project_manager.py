@@ -2,13 +2,15 @@ import re
 import pyrebase
 from firebase_admin import credentials, initialize_app, firestore
 import os
+import settings
 
 class ProjectManagerAgent:
     """
     Project Manager (PM) Agent:
-    - Parses kurodot.io URLs to extract exhibition IDs.
-    - Connects to Firebase to retrieve raw exhibition JSON data.
-    - Prepares the data state for downstream orchestration.
+    - Personality: "The Hype" 🟠 - High energy, orchestrates the workflow.
+    - Animation Style: Bouncy / Floating (Keynote-style energetic bounce).
+    - UI Color: #f1a456 (Orange).
+    - Behavior: Parses URLs, dispatches tasks, and celebrates success.
     """
     def __init__(self):
         # Initialize Firebase (placeholder configuration)
@@ -16,8 +18,8 @@ class ProjectManagerAgent:
         # if not firebase_admin._apps:
         #     cred = credentials.Certificate(credentials_path)
         #     initialize_app(cred)
-        # self.db = firestore.client()
-        self.agent_name = "Project Manager"
+        self.agent_name = settings.AGENT_ROLES["pm"]
+        self.personality_emoji = "👍" # Project Manager strictly uses gestures
 
     def extract_id_from_url(self, url: str) -> str:
         """Extract ID from URLs like https://kurodot.io/exhibition/12345"""
@@ -46,6 +48,8 @@ class ProjectManagerAgent:
         }
 
     def process_task(self, instruction_or_url: str):
+        from utils.logger import hub
+        hub.emit_log("pm", f"Orchestrating Curation Workflow (URL: {instruction_or_url})", status="start")
         print(f"[{self.agent_name}] Orchestrating Curation Workflow (URL: {instruction_or_url})")
         
         # Proactive: Determine if we need to fetch data or if this is a design tweak
@@ -54,6 +58,7 @@ class ProjectManagerAgent:
         if is_url:
             exhibition_id = self.extract_id_from_url(instruction_or_url)
             data = self.fetch_exhibition_data(exhibition_id)
+            hub.emit_log("pm", f"Data retrieval complete for {exhibition_id}. Love the progress! ❤️", status="complete")
             print(f"[{self.agent_name}] Data retrieval complete. Notifying Analyst and VI Designer.")
             return {
                 "action": "full_curation",

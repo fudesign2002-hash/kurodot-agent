@@ -1,43 +1,178 @@
 # 🎨 Kurodot AI: Multi-Agent Curatorial Orchestrator
-一個基於 Gemini 1.5 Pro 打造的次世代多代理人策展系統。它將複雜的數位展覽策展流程自動化，透過「AI 策展工作坊」的多代理人協作架構，將原始展覽數據與視覺靈感，轉化為專業、高品質的策展設計資產。
 
+A next-generation multi-agent AI curation system built on **Gemini 1.5 Pro** and the **Google GenAI SDK**. Five specialized AI agents collaborate as a professional studio team — Project Manager, VI Designer, Editor, Data Analyst, and Tech Producer — to transform raw exhibition data and URLs into polished, export-ready curatorial assets in real time.
 
-## Interactive UI: AI Curation Canvas | 核心視覺：AI 策展工作坊
-採用「畫布 (Canvas)」設計，使用者Chief Curator （首席策展人）透過「便利貼」與團隊溝通。每種顏色代表一個專業領域，確保任務邊界清晰。
+Built for the **Gemini Live Agent Challenge** · Category: **Creative Storyteller** ✍️
 
-### Workflow / 協同工作流程
-0. #fefefe Note (未指派):
-Drop an idea or a URL. The Project Manager will intervene, parse the data, and automatically dispatch downstream tasks.
+---
 
-1. #f1a456 Project Manager (project-manager.py):
-收集原始創意或解析 URL。若任務未指派，PM 會介入解析數據並自動分派任務。
-Drop an idea or a URL. The Project Manager will intervene, parse the data, and automatically dispatch downstream tasks.
+## 🚀 Quick Start (Local)
 
-2. #ce538a VI Designer (vi-designer.py):
-讀取參考圖語義，利用 Imagen 3 生成展覽主視覺、配色方案與設計元素。
-Strict visual, color, and image generation instructions.
+### Prerequisites
 
-3. #87e5e7 Editor (editor.py):
-將結構化數據（JSON）轉化為流暢的策展論述、作品賞析，並提供高品質的中英雙語轉譯。
-Strict tone, translation, and narrative instructions.
+- Python 3.10+
+- A [Google AI Studio](https://aistudio.google.com/) API key with access to `gemini-1.5-pro` and `gemini-2.0-flash-preview-image-generation`
+- (Optional) A Google Cloud project with Cloud Storage enabled for export uploads
 
-4. #5062c8 Data Analyst (analyst.py):
-對接 Umami API 分析即時流量，識別最受歡迎的作品，為策展提供數據支持。
-Data interpretation instructions.
+### 1. Clone the repo
 
-5. #272a3a Tech Producer (tech-producer.py):
-負責檔案格式輸出（PDF, SVG, JPG, PNG）。搞定檔案封裝、Google Cloud Storage 存儲。
+```bash
+git clone https://github.com/YOUR_USERNAME/kurodot-agent.git
+cd kurodot-agent
+```
 
+### 2. Create a virtual environment and install dependencies
 
-## 🌟 Technical Highlights: Domain Isolation | 技術亮點：代理人邊界感
+```bash
+python3 -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-專案核心實驗點在於：證明多代理人系統可以像人類專業團隊一樣，在不破壞他人成果的前提下，進行高度並行的協同工作。
+### 3. Set environment variables
 
-* **Prompt Sharding (獨立約束):** Every agent has strict Boundary Constraints to prevent overstepping. 
-* **Non-Interference (不干擾原則):** When the Editor modifies text, the Tech Producer locks visual assets. When the VI Designer alters styles, text remains Read-Only.
-* **Version Control (分開控管):** Each Agent maintains its own state branch. The final merge happens only during the Tech Production phase.
+Create a `.env` file in the project root (never commit this):
 
+```dotenv
+GEMINI_API_KEY=your_google_ai_studio_api_key_here
+GCS_BUCKET_NAME=your_gcs_bucket_name          # optional, for Tech Producer uploads
+UMAMI_API_URL=https://api.umami.is/v1         # optional, for Analyst live traffic
+UMAMI_TOKEN=your_umami_token                  # optional
+```
 
+Or export them directly:
+
+```bash
+export GEMINI_API_KEY="your_key_here"
+```
+
+### 4. Run the backend
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 5. Open the UI
+
+Navigate to [http://localhost:8000](http://localhost:8000) in your browser.
+
+The canvas loads automatically. Drop an exhibition URL (e.g. `https://app.kurodot.io/exhibition/bauhaus-blueprint-qevdv`) onto a sticky note to start the curation pipeline.
+
+---
+
+## ☁️ Deploy to Google Cloud Run
+
+Requires [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) authenticated and a GCP project configured.
+
+```bash
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
+export GEMINI_API_KEY="your_key_here"
+export GCS_BUCKET_NAME="your_bucket"
+chmod +x deploy.sh && ./deploy.sh
+```
+
+`deploy.sh` runs `gcloud builds submit` + `gcloud run deploy` in one step. The live service URL is printed on completion.
+
+---
+
+## 🧪 Test the Creative Storyteller Endpoint
+
+Once the server is running, trigger the **interleaved text + image generation** (the Creative Storyteller mandatory feature):
+
+```bash
+curl -s -X POST http://localhost:8000/api/interleaved-story \
+  -H "Content-Type: application/json" \
+  -d '{"exhibition_info": {"title": "Bauhaus Blueprint", "artist": "Keng Fu Chu", "venue": "Kurodot"}}' \
+  | python3 -m json.tool
+```
+
+Returns `text_parts` (curatorial narrative) and `image_data` (base64 PNG key visual) in a single Gemini response.
+
+---
+
+## 🏗️ System Architecture
+
+```
+User (Chief Curator)
+        │  sticky note / URL
+        ▼
+┌─────────────────────────────────┐
+│   opencanvas.html  (Frontend)   │
+│   Canvas · Sticky Notes · UI    │
+└────────────┬────────────────────┘
+             │ REST (FastAPI)
+             ▼
+┌─────────────────────────────────────────────────────┐
+│                  main.py  (FastAPI)                  │
+│  /api/start_curation   /api/interleaved-story        │
+│  /api/pm/session       /api/job/{id}                 │
+└───┬──────────┬────────────┬─────────────┬────────────┘
+    │          │            │             │
+    ▼          ▼            ▼             ▼
+ PM Agent   VI Designer  Editor       Analyst / Tech
+ (orchestr)  (Gemini     (Gemini      (Umami API /
+             GenAI SDK   GenAI SDK     GCS upload)
+             interleaved  generate)
+             text+image)
+                │                          │
+                ▼                          ▼
+        ┌───────────────┐        ┌─────────────────┐
+        │  Google Cloud │        │  Google Cloud   │
+        │  Run (backend)│        │  Storage (assets)│
+        └───────────────┘        └─────────────────┘
+                │
+        AgentCollaborationHub
+        (utils/logger.py)
+        PM dispatch sessions,
+        dedup logs, celebration
+```
+
+---
+
+## 🤖 Agent Roster
+
+| Color | Agent | Role | Gemini Feature Used |
+|-------|-------|------|---------------------|
+| 🟠 `#f1a456` | Project Manager | Orchestrates, dispatches, celebrates | PM session tracking |
+| 🔴 `#ce538a` | VI Designer | Layout, dark mode, ratio, key visual | **Interleaved text + image output** |
+| 🩵 `#6bcdcf` | Editor | Bilingual narrative, translation | `gemini-1.5-pro` generate |
+| 🔵 `#5062c8` | Data Analyst | Traffic insights, recommendations | Umami API + Hub |
+| ⚫ `#272a3a` | Tech Producer | Export JPG/PNG/PDF, GCS upload | `google-cloud-storage` |
+
+---
+
+## 🌟 Technical Highlights
+
+* **Google GenAI SDK** — all Gemini calls use `google-genai` (not the legacy `google-generativeai`)
+* **Creative Storyteller** — `POST /api/interleaved-story` uses `gemini-2.0-flash-preview-image-generation` with `response_modalities=["TEXT","IMAGE"]` to produce a mixed narrative + key visual in a single response stream
+* **Prompt Sharding** — each agent has strict boundary constraints; Editor cannot change design, Designer cannot change text
+* **PM Dispatch Sessions** — logger.py tracks which agents were dispatched per task; PM celebrates with floating emoji when all complete
+* **Cloud Run ready** — `Dockerfile` + `deploy.sh` IaC for one-command deployment
+
+---
+
+## 📁 Project Structure
+
+```
+kurodot-agent/
+├── main.py                  # FastAPI backend + all API routes
+├── opencanvas.html          # Single-file frontend SPA
+├── settings.py              # Agent roles, test config
+├── requirements.txt
+├── Dockerfile               # Cloud Run container
+├── deploy.sh                # Cloud Run deploy script (IaC)
+├── agents/
+│   ├── project_manager.py   # PM: orchestration, URL parsing
+│   ├── vi_designer.py       # VI: layout, interleaved Gemini output
+│   ├── editor.py            # Editorial: bilingual narrative
+│   ├── analyst.py           # Data: Umami traffic + recommendations
+│   └── tech_producer.py     # Tech: export packaging, GCS upload
+└── utils/
+    └── logger.py            # AgentCollaborationHub: dedup, PM sessions
+```
+
+---
 
 開發指令!!!!!重要, 絕對遵守
 所有角色的agent的功能只寫在自己的.py檔裡面, 不能開新檔案

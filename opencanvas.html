@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Open Canvas v1.4.0 (Client-Side Fetch)</title>
-    <!-- v1.3.1: Zero-Dependency Layout Engine -->
+    <title>Open Canvas v1.4.9 (Client-Side Fetch)</title>
+    <!-- v1.4.9: PM dispatch session — all tasks route through PM → logger → celebrate -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -48,6 +48,7 @@
             font-weight: 500;
             cursor: pointer;
             transition: transform 0.2s;
+            position: relative; /* Fixed: Added relative positioning */
         }
 
         .agent-status:hover {
@@ -93,8 +94,7 @@
         }
 
         .state-notice {
-            background-color: #ff3b30 !important;
-            animation: notice-pulse 1.2s infinite ease-in-out;
+            background-color: #5062c8 !important; /* 跟隨 Analyst 原色，不再變紅 */
             opacity: 1;
         }
 
@@ -134,10 +134,80 @@
         /* 移除之前 pm 強制加上邊框的樣式，改用單純的背景色 (這裡完全依照 Readme 的定義) */
         .color-pm { background-color: #f1a456; }
         .color-vi { background-color: #ce538a; }
-        .color-editor { background-color: #87e5e7; }
+        .color-editor { background-color: #6bcdcf; }
         .color-analyst { background-color: #5062c8; }
         .color-tech { background-color: #272a3a; }
         
+        /* --- Agent Notification Bubbles --- */
+        .notification-bubble {
+            position: absolute;
+            bottom: 22px; /* 稍微覆蓋在角色上方 */
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            background: white;
+            padding: 8px 12px; /* 更寬一點 */
+            border-radius: 24px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.22);
+            z-index: 10000; /* 確保在所有 UI 之上 */
+            pointer-events: auto;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 48px;
+            min-height: 48px;
+            border: 1.5px solid rgba(255,255,255,0.8);
+            backdrop-filter: blur(4px);
+        }
+
+        .notification-bubble.show {
+            transform: translateX(-50%) scale(1);
+            /* 移除 infinite，只在彈出時執行一次強調動畫 */
+            animation: bounce-bubble-once 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes bounce-bubble-once {
+            0% { transform: translateX(-50%) scale(0); opacity: 0; }
+            50% { transform: translateX(-50%) scale(1.3) translateY(-10px); opacity: 1; }
+            100% { transform: translateX(-50%) scale(1) translateY(0); opacity: 1; }
+        }
+
+        /* 靜態保持在上方，不再持續抖動 */
+        .bubble-emoji {
+            font-size: 26px; 
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            display: flex;
+            gap: 4px;
+            user-select: none;
+        }
+
+        /* Float sub-emojis (Hearts/Thumbs) */
+        .bubble-float {
+            position: absolute;
+            font-size: 16px;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10001;
+        }
+
+        @keyframes float-up {
+            0% { transform: translate(var(--startX), 0) scale(0.5); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translate(var(--endX), -60px) scale(1.3); opacity: 0; }
+        }
+
+        .notification-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid white;
+        }
+
         /* 讓新增的便利貼可以放置在不同位置並允許拖曳與點擊 */
         #canvas-board {
             position: absolute;
@@ -389,48 +459,38 @@
         /* Agent Console Message Log */
         .agent-console {
             position: fixed;
-            bottom: 80px;
+            top: 40px; /* 改為從畫面上方開始 */
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             flex-direction: column;
             gap: 12px;
-            z-index: 1000; /* Console also needs to be above canvas */
-        }
-            z-index: 100;
-            pointer-events: none; /* 讓滑鼠點擊可以穿透 */
-        }
-
-        /* Skeleton Loading pulse animation */
-        @keyframes skeleton-pulse {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        .pulse-skeleton {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: skeleton-pulse 1.5s infinite;
-            border-radius: 4px;
-            width: 100%;
-            height: 100%;
+            z-index: 21000; /* 高於所有 UI */
+            pointer-events: none;
         }
 
         .console-message {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(8px);
-            padding: 12px 24px;
-            border-radius: 24px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
+            padding: 10px 22px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: 14px;
-            color: #444; /* 執行的工作文字保持深色 */
+            font-size: 13px;
+            color: #444; 
             font-weight: 500;
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(-20px); /* 從上方彈入 */
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: auto;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            /* --- LIMIT LOG UI --- */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 600px; /* 限制最大寬度以防字太長 */
         }
 
         .console-message.show {
@@ -440,20 +500,156 @@
 
         .console-message.hide {
             opacity: 0;
-            transform: translateY(-20px) scale(0.95);
+            transform: translateY(-15px) scale(0.98);
         }
 
-        .console-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            flex-shrink: 0;
+        /* --- Agent Personalities --- */
+        /* Each agent's log text should have a unique animation style */
+        .agent-log {
+            display: inline-block;
         }
 
-        /* 只有 Agent 的名稱文字變淡 */
-        .console-agent-name {
-            color: #ccc;
+        /* PM: Bouncy (Keynote-style energetic bounce) */
+        .pm-text-anim {
+            display: inline-block;
+            animation: pm-bouncy 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+            font-weight: 800;
+        }
+        @keyframes pm-bouncy {
+            0% { transform: scale(0.9) translateY(0); }
+            100% { transform: scale(1.1) translateY(-12px); color: #f1a456; }
+        }
+
+        /* VI Designer: Fly In (Keynote-style smooth drift and scale) */
+        .designer-text-anim {
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            background: linear-gradient(to right, #ce538a, #f1a456, #6bcdcf, #5062c8, #ce538a);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: designer-rainbow 3s linear infinite, designer-fly-in 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
             font-weight: 700;
+            opacity: 0;
+            transform: translateY(20px) scale(0.8);
+        }
+        @keyframes designer-fly-in {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Editor: Wipe (Keynote-style build-in wipe from left) */
+        .editor-text-anim {
+            font-family: 'Times New Roman', Times, serif;
+            position: relative;
+            display: inline-block;
+            overflow: hidden;
+            animation: editor-wipe 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            white-space: nowrap;
+        }
+        @keyframes editor-wipe {
+            from { width: 0; opacity: 0; }
+            to { width: 100%; opacity: 1; }
+        }
+
+        /* Data Analyst: Matrix Typewriter (Digital Terminal font) */
+        .analyst-text-anim {
+            font-family: 'Courier New', Courier, monospace;
+            background: rgba(80, 98, 200, 0.05);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        .analyst-text-anim .typing-area {
+            border-left: 3px solid #5062c8;
+            padding-left: 4px;
+            color: #5062c8;
+        }
+        .analyst-text-anim.blink-cursor .typing-area {
+            animation: analyst-scan 0.1s steps(2) infinite;
+        }
+        @keyframes analyst-scan {
+            from { border-color: transparent; }
+            to { border-color: #5062c8; }
+        }
+
+        /* Tech Producer: Fade In (Keynote-style soft dissolve) */
+        .tech-text-anim {
+            font-family: 'Verdana', sans-serif;
+            animation: tech-fade-in 1.5s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes tech-fade-in {
+            from { opacity: 0; filter: blur(5px); }
+            to { opacity: 1; filter: blur(0px); }
+        }
+
+        .console-agent-name {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        /* --- Agent Personality Log Animations --- */
+        /* 1. PM: 🟠 The Hype - Gentle Floating (Calmed down) */
+        @keyframes pm-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        .pm-text-anim { 
+            display: inline-block;
+            animation: pm-float 2s ease-in-out infinite; 
+        }
+
+        /* 2. Designer: 🔴 The Muse - Elegant Glide & Blur reveal */
+        @keyframes designer-glam {
+            from { opacity: 0; filter: blur(8px); transform: translateX(-15px); }
+            to { opacity: 1; filter: blur(0); transform: translateX(0); }
+        }
+        .designer-text-anim { 
+            display: inline-block;
+            animation: designer-glam 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards; 
+        }
+
+        /* 3. Editor: 🔵 The Grump - Hard Crash & Shake */
+        @keyframes editor-angry {
+            0% { transform: scale(2); opacity: 0; }
+            40% { transform: scale(1); opacity: 1; }
+            50% { transform: rotate(2deg) translateX(3px); }
+            70% { transform: rotate(-2deg) translateX(-3px); }
+            100% { transform: rotate(0) translateX(0); }
+        }
+        .editor-text-anim { 
+            display: inline-block;
+            animation: editor-angry 0.3s ease-out forwards; 
+            font-weight: 800;
+        }
+
+        /* 4. Analyst: 🟣 The Brain - Monospace Typewriter with Cursor */
+        @keyframes analyst-cursor {
+            from { border-right: 2px solid #5062c8; }
+            to { border-right: 2px solid transparent; }
+        }
+        .analyst-text-anim { 
+            font-family: 'Courier New', monospace; 
+            border-right: 2px solid #5062c8;
+            animation: analyst-cursor 0.6s step-end infinite;
+            padding-right: 4px;
+        }
+
+        /* 5. Tech: ⚫ The Hand - Steady Breathing */
+        @keyframes tech-steady {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        .tech-text-anim { 
+            display: inline-block;
+            animation: tech-steady 2.5s ease-in-out infinite; 
+        }
+
+        /* Removed .console-dot styles */
+
+        /* Agent name typography */
+        .console-agent-name {
+            font-weight: 800;
             margin-right: 6px;
             text-transform: uppercase;
             font-size: 11px;
@@ -525,7 +721,7 @@
             <span class="status-dot color-vi state-idle"></span>
             DESIGNER
         </div>
-        <div class="agent-status" title="Editorial" data-role="Editor" data-color="#87e5e7">
+        <div class="agent-status" title="Editorial" data-role="Editor" data-color="#6bcdcf">
             <span class="status-dot color-editor state-idle"></span>
             EDITOR
         </div>
@@ -615,17 +811,7 @@
             const isTechNote = roleName === 'Tech Producer';
             const isPMNote = roleName === 'Project Manager'; // Project Manager is the black one
 
-            const techShortcuts = (isTechNote || isPMNote) ? `
-                <div class="tech-shortcuts" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; margin-bottom: 4px;">
-                    <button class="tech-btn" data-cmd="Export JPG" style="background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); color: #333; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer;">JPG</button>
-                    <button class="tech-btn" data-cmd="Export PNG" style="background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); color: #333; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer;">PNG</button>
-                    <button class="tech-btn" data-cmd="Copy to Clipboard" title="Copy Image" style="background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); color: #333; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer; display: flex; align-items: center; gap: 3px;">
-                        <span style="font-size: 10px;">📋</span> Copy
-                    </button>
-                </div>
-            ` : '';
-
-            // Adjusted tech-btn style for colored sticky notes (Tech Producer - Purple)
+            // Only Tech Producer needs these shortcuts
             const techShortcutsColored = isTechNote ? `
                 <div class="tech-shortcuts" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; margin-bottom: 4px;">
                     <button class="tech-btn" data-cmd="Export JPG" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; border-radius: 3px; font-size: 9px; padding: 2px 6px; cursor: pointer;">JPG</button>
@@ -636,7 +822,7 @@
                 </div>
             ` : '';
 
-            const finalShortcuts = isPMNote ? techShortcuts : techShortcutsColored;
+            const finalShortcuts = techShortcutsColored;
 
             const contentHTML = initialText 
                 ? `<div class="note-content" contenteditable="true">${initialText}</div>`
@@ -825,6 +1011,8 @@
         });
 
         function showAgentConsoleMessage(dotColorClass, text, duration = 4000, speed = 30, emoji = '') {
+            if (!text || text.trim() === "" || text.trim() === ":") return; // 防呆：不顯示空白或只有冒號的訊息
+
             const consoleArea = document.getElementById('agent-console');
             const allMsgs = consoleArea.querySelectorAll('.console-message');
             if (allMsgs.length >= 4) {
@@ -834,7 +1022,16 @@
             
             // 提取 Agent 名稱並格式化
             let agentDisplayName = "";
-            let remainingText = text.replace(/⚠️|✅|🔗/g, '').trim();
+            let remainingText = text.replace(/⚠️|✅|🔗|🎨|✍️|💡|💎|⚙️|😱|✨/g, '').trim();
+            
+            // Remove any other common emojis manually to be safe
+            remainingText = remainingText.replace(/[\u{1F300}-\u{1F9FF}]/gu, '');
+            
+            // --- TEXT BRAVITY LIMIT ---
+            // 限制 Log 字數在 80 字元內，超過則截斷
+            if (remainingText.length > 80) {
+                remainingText = remainingText.substring(0, 77) + "...";
+            }
             
             // 統一所有可能的 Agent 名稱，並確保它們都能被匹配
             const agentPrefixes = [
@@ -867,41 +1064,126 @@
                 }
             }
 
+            // --- EMOJI DESIGN REFACTOR ---
+            // The 'emoji' variable is used for the reactive agent bubbles (spawnAgentBubble).
+            // We ensure NO emojis are prepended or added to the text displayed in the console log area.
             if (!emoji) {
                 const fullText = text.toLowerCase();
-                if (fullText.includes("applied") || fullText.includes("completed") || fullText.includes("downloaded") || fullText.includes("approved")) emoji = '🙌';
-                else if (fullText.includes("processing") || fullText.includes("connecting") || fullText.includes("executing") || fullText.includes("drafting")) emoji = '⚡️';
-                else if (fullText.includes("designer") || fullText.includes("layout") || fullText.includes("scaffolding") || fullText.includes("visuals")) emoji = '🎨';
-                else if (fullText.includes("editor") || fullText.includes("text") || fullText.includes("typography")) emoji = '✍️';
-                else if (fullText.includes("api") || fullText.includes("parsed") || fullText.includes("insight")) emoji = '💡';
-                else if (fullText.includes("recommendation")) emoji = '💎';
-                else if (fullText.includes("producer") || fullText.includes("export") || fullText.includes("css")) emoji = '⚙️';
-                else if (fullText.includes("error") || fullText.includes("failed")) emoji = '😱';
-                else emoji = '✨';
+                const isPM = dotColorClass === 'color-pm';
+                
+                if (isPM) {
+                    // PM Specific Gesture Logic - Randomized lists to avoid repetition
+                    const gestures = {
+                        success: ['👏', '🙌', '👍', '✅'],
+                        process: ['👌', '⚡️', '⏳', '💪'],
+                        connect: ['🤝', '🔗', '🌐', '📡'],
+                        content: ['📝', '✍️', '📖', '📌'],
+                        insight: ['💡', '🔎', '💎', '🚀'],
+                        alert:   ['✋', '⚠️', '🛑', '❗'],
+                        greet:   ['👋', '🤝', '🖖', '😊']
+                    };
+                    const getRand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+                    if (fullText.includes("applied") || fullText.includes("completed") || fullText.includes("success")) {
+                        emoji = getRand(gestures.success);
+                    } else if (fullText.includes("processing") || fullText.includes("executing") || fullText.includes("orchestrating")) {
+                        emoji = getRand(gestures.process);
+                    } else if (fullText.includes("connecting") || fullText.includes("fetch") || fullText.includes("sent")) {
+                        emoji = getRand(gestures.connect);
+                    } else if (fullText.includes("text") || fullText.includes("editorial") || fullText.includes("context")) {
+                        emoji = getRand(gestures.content);
+                    } else if (fullText.includes("insight") || fullText.includes("analyzing") || fullText.includes("recommendation")) {
+                        emoji = getRand(gestures.insight);
+                    } else if (fullText.includes("error") || fullText.includes("failed") || fullText.includes("blocked")) {
+                        emoji = getRand(gestures.alert);
+                    } else {
+                        emoji = getRand(gestures.greet);
+                    }
+                } else {
+                    // Other Agents remain specialized
+                    if (fullText.includes("applied") || fullText.includes("completed") || fullText.includes("downloaded") || fullText.includes("approved")) emoji = '🙌';
+                    else if (fullText.includes("processing") || fullText.includes("connecting") || fullText.includes("executing") || fullText.includes("drafting")) emoji = '⚡️';
+                    else if (fullText.includes("designer") || fullText.includes("layout") || fullText.includes("scaffolding") || fullText.includes("visuals")) emoji = '🎨';
+                    else if (fullText.includes("editor") || fullText.includes("text") || fullText.includes("typography")) emoji = '✍️';
+                    else if (fullText.includes("api") || fullText.includes("parsed") || fullText.includes("insight")) emoji = '💡';
+                    else if (fullText.includes("recommendation")) emoji = '💎';
+                    else if (fullText.includes("producer") || fullText.includes("export") || fullText.includes("css")) emoji = '⚙️';
+                    else if (fullText.includes("error") || fullText.includes("failed")) emoji = '😱';
+                    else emoji = '✨';
+                }
             }
 
             const msgBox = document.createElement('div');
             msgBox.className = 'console-message show';
+
+            // Define specific colors for each agent role
+            const roleColors = {
+                'PM': '#f1a456',        // Project Manager (Orange)
+                'DESIGNER': '#ce538a',  // VI Designer (Pink)
+                'EDITOR': '#6bcdcf',    // Editorial (Teal)
+                'ANALYST': '#5062c8',   // Data Analyst (Blue)
+                'TECH': '#272a3a',      // Tech Producer (Dark)
+                'CHIEF CURATOR': '#1a1a1a' 
+            };
+
+            const agentColor = roleColors[agentDisplayName] || '#666';
+
+            // Determination of personality class
+            let personalityClass = "";
+            let roleSpeed = speed;
+
+            switch (agentDisplayName) {
+                case 'PM': 
+                    personalityClass = "pm-text-anim"; 
+                    roleSpeed = 25; // Speed up but still slower than before
+                    break;
+                case 'DESIGNER': 
+                    personalityClass = "designer-text-anim"; 
+                    roleSpeed = 45; // FLUID
+                    break;
+                case 'EDITOR': 
+                    personalityClass = "editor-text-anim"; 
+                    roleSpeed = 70; // PROFESSIONAL
+                    break;
+                case 'ANALYST': 
+                    personalityClass = "analyst-text-anim blink-cursor"; 
+                    roleSpeed = 35; // FAST - ANALYST SPEED UP
+                    break;
+                case 'TECH': 
+                    personalityClass = "tech-text-anim"; 
+                    roleSpeed = 160; // SLOW SYSTEMATIC
+                    break;
+            }
+
             msgBox.innerHTML = `
-                <div class="console-dot ${dotColorClass}"></div>
                 <div class="console-text" style="display:inline-block; max-width:85%;">
-                    ${agentDisplayName ? `<span class="console-agent-name">${agentDisplayName}</span>` : ''}
-                    <span class="typing-area"></span>
+                    ${agentDisplayName ? `<span class="console-agent-name" style="color: ${agentColor}; margin-right: 8px;">${agentDisplayName}</span>` : ''}
+                    <span class="${personalityClass} typing-area"></span>
                 </div>
-                <div class="console-emoji" style="opacity:0; transition:opacity 0.3s; margin-left:8px; font-size:16px;">${emoji}</div>
             `;
             consoleArea.appendChild(msgBox);
+
+            // --- 全局連動冒泡機制 ---
+            // 只要透過 showAgentConsoleMessage 顯示訊息，就同步在對應 Agent 身上觸發冒泡
+            if (dotColorClass && typeof spawnAgentBubble === 'function') {
+                const bubble = spawnAgentBubble(dotColorClass, emoji || '✨');
+                if (bubble) {
+                    setTimeout(() => {
+                        bubble.classList.remove('show');
+                        setTimeout(() => bubble.remove(), 400);
+                    }, 3500);
+                }
+            }
             
             const typingArea = msgBox.querySelector('.typing-area');
-            const emojiContainer = msgBox.querySelector('.console-emoji');
             let i = 0;
             function typeWriter() {
                 if (i < remainingText.length) {
-                    typingArea.innerHTML += remainingText.charAt(i);
+                    const char = remainingText.charAt(i);
+                    typingArea.innerHTML += char === ' ' ? '\u00A0' : char;
                     i++;
-                    setTimeout(typeWriter, speed);
+                    setTimeout(typeWriter, roleSpeed);
                 } else {
-                    emojiContainer.style.opacity = '1';
                     setTimeout(() => {
                         msgBox.classList.replace('show', 'hide');
                         setTimeout(() => { if(msgBox.parentNode) msgBox.remove(); }, 600);
@@ -911,18 +1193,86 @@
             setTimeout(typeWriter, 100);
         }
 
+        // ── PM Session Helpers ────────────────────────────────────────────────
+        // openPMSession: PM registers a dispatch session with N agent roles
+        async function openPMSession(sessionId, roles) {
+            try {
+                await fetch('/api/pm/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, roles })
+                });
+            } catch(e) { console.warn('[PM Session] open failed:', e); }
+        }
+
+        // reportAgentDone: agent signals it finished; returns true if all done → celebrate
+        async function reportAgentDone(sessionId, role) {
+            if (!sessionId) return;
+            try {
+                const res = await fetch(`/api/pm/session/${sessionId}/done`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role })
+                });
+                const data = await res.json();
+                if (data.all_done) showPMSessionCelebration(sessionId);
+            } catch(e) { console.warn('[PM Session] done failed:', e); }
+        }
+
+        // showPMSessionCelebration: PM throws a party when everyone's done
+        function showPMSessionCelebration(sessionId) {
+            const celebrations = [
+                'PM: Great work, team! All tasks done! 🎉🥂✨',
+                'PM: Outstanding! Everyone nailed it! 🎊🥂',
+                'PM: Superb collaboration! Curation looks amazing! 🎉✨',
+                'PM: All done! Brilliant team effort! 👏🎉🍾',
+            ];
+            const msg = celebrations[Math.floor(Math.random() * celebrations.length)];
+            showAgentConsoleMessage('color-pm', msg, 8000, 30, ['👏', '🎉', '🍾']);
+            const pmDot = document.querySelector('.color-pm');
+            if (pmDot) {
+                const container = pmDot.closest('.agent-status');
+                for (let i = 0; i < 14; i++) {
+                    setTimeout(() => {
+                        const float = document.createElement('div');
+                        float.className = 'bubble-float';
+                        float.innerText = ['✨','🎊','🎉','🥂','🍾'][Math.floor(Math.random() * 5)];
+                        float.style.left = '50%';
+                        float.style.setProperty('--startX', (Math.random() * 100 - 50) + 'px');
+                        float.style.setProperty('--endX', (Math.random() * 200 - 100) + 'px');
+                        float.style.animation = `float-up ${1.5 + Math.random()}s ease-out forwards`;
+                        container.appendChild(float);
+                        setTimeout(() => float.remove(), 2200);
+                    }, i * 100);
+                }
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         async function processTask(rawText, noteElement) {
             const pmDot = document.querySelector('.color-pm');
             pmDot.classList.replace('state-idle', 'state-executing');
-            showAgentConsoleMessage('color-pm', `PM is orchestrating your task...`, 3000, 30, '🚀');                                                       
-            
-            // Check for Tech specific commands (Export / Clipboard)
+            showAgentConsoleMessage('color-pm', `PM is orchestrating your task...`, 3000, 30);
+
+            // --- PM INTENT: If the text contains a known exhibition URL, treat it as a
+            // curation swap regardless of any other words the user typed around it.
+            // Extract just the URL and pass that to the backend.
+            const urlMatch = rawText.match(/https?:\/\/[^\s]+/);
             const lowerText = rawText.toLowerCase();
-            const isTechCommand = lowerText.includes('export') || lowerText.includes('jpg') || lowerText.includes('png') || lowerText.includes('clipboard') || lowerText.includes('copy');
-            const isDesignerCommand = lowerText.includes('4:5') || lowerText.includes('dark') || lowerText.includes('style') || lowerText.includes('layout');
-            const isEditorCommand = lowerText.includes('shorten') || lowerText.includes('content') || lowerText.includes('translate');
+            const containsExhibitionUrl = urlMatch && (lowerText.includes('kurodot.io') || lowerText.includes('fu-design.com'));
+            if (containsExhibitionUrl) {
+                // Strip everything except the URL so routing keywords don't mislead
+                rawText = urlMatch[0];
+            }
+
+            // Check for Tech specific commands (Export / Clipboard)
+            const isTechCommand = !containsExhibitionUrl && (lowerText.includes('export') || lowerText.includes('jpg') || lowerText.includes('png') || lowerText.includes('clipboard') || lowerText.includes('copy'));
+            const isDesignerCommand = !containsExhibitionUrl && (lowerText.includes('4:5') || lowerText.includes('dark') || lowerText.includes('style') || lowerText.includes('layout'));
+            const isEditorCommand = !containsExhibitionUrl && (lowerText.includes('shorten') || lowerText.includes('content') || lowerText.includes('translate'));
 
             // --- Hand over scheduling to Logger Agent (Hub) ---
+            const sessionId = 'sess_' + Date.now();
+
             if (isTechCommand) {
                 const jobId = window._currentJobId || "manual-task";
                 
@@ -938,26 +1288,34 @@
                     pmDot.classList.add('state-executing');
                 }
 
+                showAgentConsoleMessage('color-pm', `PM: Reviewing task — dispatching to Tech Producer...`, 2000, 20);
+                await openPMSession(sessionId, ['tech']);
+
                 fetch(`/api/job/${jobId}/schedule`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ role: 'tech', task_type: 'export_v1', priority: 5 })
                 }).then(async res => {
                     const data = await res.json();
-                    showAgentConsoleMessage('color-pm', `PM: Task sent to Logger. Status: ${data.task_id ? 'Scheduled' : 'Queued'}.`, 3000, 20, '📅');
+                    showAgentConsoleMessage('color-pm', `PM: Task dispatched to Logger. Status: ${data.task_id ? 'Scheduled' : 'Queued'}.`, 3000, 20);
                 }).catch(err => {
                     console.error("[PM] Hub Fail Over:", err);
-                    triggerRevision('Tech Producer', rawText, noteElement);
+                    triggerRevision('Tech Producer', rawText, noteElement, { sessionId });
                 });
                 
                 window._pendingTechNote = noteElement;
                 window._pendingTechInstructions = rawText;
+                window._pendingTechExtra = { sessionId };
                 return;
             } else if (isDesignerCommand) {
-                triggerRevision('VI Designer', rawText, noteElement);
+                showAgentConsoleMessage('color-pm', `PM: Reviewing task — dispatching to VI Designer...`, 2000, 20);
+                await openPMSession(sessionId, ['vi']);
+                triggerRevision('VI Designer', rawText, noteElement, { sessionId });
                 return;
             } else if (isEditorCommand) {
-                triggerRevision('Editorial', rawText, noteElement);
+                showAgentConsoleMessage('color-pm', `PM: Reviewing task — dispatching to Editorial...`, 2000, 20);
+                await openPMSession(sessionId, ['editor']);
+                triggerRevision('Editorial', rawText, noteElement, { sessionId });
                 return;
             }
 
@@ -973,7 +1331,7 @@
                 if (idMatch) {
                     try {
                         const baseUrl = isKurodot ? "https://app.kurodot.io/api/exhibit" : "https://www.fu-design.com/api/exhibit";
-                        showAgentConsoleMessage('color-pm', `PM: Fetching exhibition data directly...`, 2000, 20, '📡');
+                        showAgentConsoleMessage('color-pm', `PM: Fetching exhibition data directly...`, 2000, 20);
                         
                         const apiTarget = `${baseUrl}?id=${idMatch[1]}`;
                         const apiResp = await fetch(apiTarget);
@@ -984,14 +1342,14 @@
                             if (checkData) {
                                 exhibitionData = data;
                                 console.log('%c[PM]%c Browser-side fetch succeeded.', 'color:#f1a456;font-weight:bold;', 'color:#555');
-                                showAgentConsoleMessage('color-pm', `PM: Data fetched successfully via browser!`, 2000, 20, '✅');
+                                showAgentConsoleMessage('color-pm', `PM: Data fetched successfully via browser!`, 2000, 20);
                             }
                         } else {
                             console.warn(`[PM] Browser fetch returned status ${apiResp.status}`);
                         }
                     } catch(e) {
                         console.warn('[PM] Browser-side fetch failed (CORS or network):', e);
-                        showAgentConsoleMessage('color-pm', `PM: Browser fetch blocked (CORS). AI will retry...`, 2000, 20, '⚠️');
+                        showAgentConsoleMessage('color-pm', `PM: Browser fetch blocked (CORS). AI will retry...`, 2000, 20);
                     }
                 }
             }
@@ -1010,6 +1368,7 @@
                     // Keep _bannerSpawned true if artboard already exists to preserve layout/style
                     window._imageSpawned = false;
                     window._textSpawned = false;
+                    window._proactiveTriggered = false; 
                     if (!document.getElementById('banner-artboard')) {
                         window._bannerSpawned = false;
                     }
@@ -1038,10 +1397,11 @@
                         data.pending_tasks.forEach(task => {
                             if (task.role === 'tech' && task.status === 'scheduled') {
                                 if (window._pendingTechNote) {
-                                    triggerRevision('Tech Producer', window._pendingTechInstructions, window._pendingTechNote);
+                                    triggerRevision('Tech Producer', window._pendingTechInstructions, window._pendingTechNote, window._pendingTechExtra || {});
                                     fetch(`/api/job/manual-task/task/${task.id}/status?status=running`, { method: 'POST' });
                                     window._pendingTechNote = null;
                                     window._pendingTechInstructions = null;
+                                    window._pendingTechExtra = null;
                                     
                                     // If no more tasks, we can eventually stop this poller
                                     clearInterval(interval);
@@ -1061,10 +1421,17 @@
         async function pollBackendStatus(jobId) {
              const colorMapping = {
                 'project-manager': 'pm',
+                'project manager': 'pm',
                 'analyst': 'analyst',
+                'data analyst': 'analyst',
+                'audience-analyst': 'analyst',
                 'editor': 'editor',
+                'editorial-specialist': 'editor',
                 'vi-designer': 'vi',
-                'tech-producer': 'tech'
+                'vi designer': 'vi',
+                'tech-producer': 'tech',
+                'tech producer': 'tech',
+                'tech-production': 'tech'
             };
 
             const pollInterval = setInterval(async () => {
@@ -1078,7 +1445,7 @@
                             if (task.role === 'tech' && task.status === 'scheduled') {
                                 // Pick up the pending tech task
                                 if (window._pendingTechNote) {
-                                    triggerRevision('Tech Producer', window._pendingTechInstructions, window._pendingTechNote);
+                                    triggerRevision('Tech Producer', window._pendingTechInstructions, window._pendingTechNote, window._pendingTechExtra || {});
                                     
                                     // Notify backend that task is running
                                     fetch(`/api/job/${jobId}/task/${task.id}/status?status=running`, { method: 'POST' });
@@ -1086,19 +1453,92 @@
                                     // Clean up local temp refs
                                     window._pendingTechNote = null;
                                     window._pendingTechInstructions = null;
+                                    window._pendingTechExtra = null;
                                 }
                             }
                         });
                     }
 
-                    if(data.logs && data.logs.length > 0) {
-                        const lastLog = data.logs[data.logs.length - 1];
-                        if(window._lastLog !== lastLog) {
-                            window._lastLog = lastLog;
-                            let agentMatch = Object.keys(colorMapping).find(k => lastLog.includes(k) || lastLog.toLowerCase().includes(k.replace('-', ' ')));
-                            let color = agentMatch ? `color-${colorMapping[agentMatch]}` : 'color-pm';
-                            showAgentConsoleMessage(color, lastLog, 2500, 20);
-                        }
+                    const lastLog = data.logs && data.logs.length > 0 ? data.logs[data.logs.length - 1] : null;
+                    if (lastLog) {
+                            if(window._lastLog !== lastLog) {
+                                window._lastLog = lastLog;
+                                
+                                // 徹底檢查 Agent 匹配邏輯
+                                let agentRole = 'pm'; // 預設
+                                
+                                // 優先檢查 Log 開頭的標籤，如 "DESIGNER:", "PM:", "EDITOR:"
+                                const logPrefixMatch = lastLog.match(/^([A-Z\s-]+):/i);
+                                let searchContent = lastLog.toLowerCase();
+                                
+                                if (logPrefixMatch) {
+                                    const prefix = logPrefixMatch[1].trim().toLowerCase();
+                                    // 將 prefix 中的空格轉換為連字號以適配 colorMapping，如 "vi designer" -> "vi-designer"
+                                    const normalizedPrefix = prefix.replace(/\s+/g, '-');
+                                    
+                                    let foundKey = Object.keys(colorMapping).find(k => 
+                                        normalizedPrefix === k.toLowerCase() || 
+                                        normalizedPrefix === k.replace('-', ' ').toLowerCase() ||
+                                        // 處理縮寫情況，如 "designer" 匹配 "vi-designer"
+                                        k.toLowerCase().includes(normalizedPrefix)
+                                    );
+                                    
+                                    if (foundKey) {
+                                        agentRole = colorMapping[foundKey];
+                                    }
+                                } else {
+                                    // 原本的關鍵字包含邏輯
+                                    let foundKey = Object.keys(colorMapping).find(k => 
+                                        searchContent.includes(k.toLowerCase()) || 
+                                        searchContent.includes(k.replace('-', ' ').toLowerCase())
+                                    );
+                                    
+                                    if (foundKey) {
+                                        agentRole = colorMapping[foundKey];
+                                    }
+                                }
+
+                                let colorClass = `color-${agentRole}`;
+
+                                // 根據 Log 內容與角色決定個性化 Emoji
+                                let busyEmoji = '⚡️';
+                                const lowerLog = lastLog.toLowerCase();
+                                
+                                if (lowerLog.includes("completed") || lowerLog.includes("finished") || lowerLog.includes("success") || lowerLog.includes("成功")) {
+                                    busyEmoji = '✅';
+                                } else if (lowerLog.includes("recommendation") || lowerLog.includes("suggestion") || lowerLog.includes("建議")) {
+                                    busyEmoji = '💡'; // Analyst Recommendation (Lightbulb)
+                                } else if (lowerLog.includes("clapping") || lowerLog.includes("well done") || lowerLog.includes("拍手") || lowerLog.includes("棒")) {
+                                    busyEmoji = '👏';
+                                } else if (lowerLog.includes("ok") || lowerLog.includes("good") || lowerLog.includes("👍") || lowerLog.includes("可以")) {
+                                    busyEmoji = '👍';
+                                } else if (lowerLog.includes("great") || lowerLog.includes("nice") || lowerLog.includes("like") || lowerLog.includes("讚")) {
+                                    busyEmoji = '👌';
+                                } else if (lowerLog.includes("love") || lowerLog.includes("❤️") || lowerLog.includes("愛")) {
+                                    busyEmoji = '❤️';
+                                } else {
+                                    switch(agentRole) {
+                                        case 'pm': 
+                                            // Project Manager strictly uses gestures
+                                            if (lowerLog.includes("analysis") || lowerLog.includes("extract")) busyEmoji = '👌';
+                                            else if (lowerLog.includes("plan") || lowerLog.includes("orchestrat")) busyEmoji = '👍';
+                                            else busyEmoji = '✌️'; 
+                                            break;
+                                        case 'vi': busyEmoji = '🎨'; break;
+                                        case 'editor': busyEmoji = '✍️'; break;
+                                        case 'analyst': 
+                                            busyEmoji = (lowerLog.includes("!") || lowerLog.includes("identif")) ? '💡' : '📡'; 
+                                            break;
+                                        case 'tech': 
+                                            busyEmoji = (lowerLog.includes("copy") || lowerLog.includes("clipboard")) ? '📋' : '⚙️';
+                                            break;
+                                        default: busyEmoji = '⚡️';
+                                    }
+                                }
+
+                                // 呼叫控制台顯示，並傳入正確的 Emoji 進行連動冒泡
+                                showAgentConsoleMessage(colorClass, lastLog, 2500, 20, busyEmoji);
+                            }
                     }
 
                     // Handle automatic dismissal of completed recommendations
@@ -1150,100 +1590,219 @@
                     }
                     if (!window._textSpawned && ["editor_add_text"].includes(data.current_step)) {
                         window._textSpawned = true;
-                        const extra = {
+                        const extraData = {
                             artist: data.ex_artist,
                             venue: data.ex_venue,
                             date: data.ex_date,
                             count: data.ex_artworks_count,
-                            visitors: data.ex_visitors
+                            visitors: data.ex_visitors,
+                            title: data.ex_title,
+                            subtitle: data.ex_subtitle,
+                            description: data.ex_description,
+                            ex_title: data.ex_title,
+                            ex_subtitle: data.ex_subtitle,
+                            ex_description: data.ex_description,
+                            overview: data.ex_description
                         };
-                        setTimeout(() => addBannerTypography(data.ex_title, data.ex_subtitle, data.ex_description, extra), 800);
+                        setTimeout(() => addBannerTypography(data.ex_title, data.ex_subtitle, data.ex_description, extraData), 800);
                     }
 
-                        if (data.status === 'finished' || data.status === 'error') {
-                            clearInterval(pollInterval);
-                            
-                            // 延遲一段時間觸發 Analyst 的自主建議 (Proactive Insight)
-                            // 修正：只有在第一次完成（初始畫布生成）時才觸發建議，避免每次修改後重複出現
-                            if (data.status === 'finished' && !window._proactiveTriggered) {
+                    if (data.status === 'finished' || data.status === 'error') {
+                        clearInterval(pollInterval);
+                        
+                        if (data.status === 'finished') {
+                            // --- PM CELEBRATION (Delayed to 2s) ---
+                            setTimeout(() => {
+                                showAgentConsoleMessage('color-pm', 'PM: Great work team! The exhibition is ready! 🥂✨🎊', 10000, 30, ['👏', '🎉', '🍾']);
+                                const pmDot = document.querySelector('.color-pm');
+                                if (pmDot) {
+                                    const container = pmDot.closest('.agent-status');
+                                    for(let i=0; i<15; i++) {
+                                        setTimeout(() => {
+                                            const float = document.createElement('div');
+                                            float.className = 'bubble-float';
+                                            float.innerText = ['✨','🎊','🎉','🥂','🍾'][Math.floor(Math.random()*5)];
+                                            float.style.left = '50%';
+                                            float.style.setProperty('--startX', (Math.random() * 100 - 50) + 'px');
+                                            float.style.setProperty('--endX', (Math.random() * 200 - 100) + 'px');
+                                            float.style.animation = `float-up ${1.5 + Math.random()}s ease-out forwards`;
+                                            container.appendChild(float);
+                                            setTimeout(() => float.remove(), 2000);
+                                        }, i * 100);
+                                    }
+                                }
+                            }, 2000);
+
+                            // 慶祝完後 8 秒 (總共 10s) 才觸發 Analyst 建議，確保視覺不重疊
+                            if (!window._proactiveTriggered) {
                                 window._proactiveTriggered = true;
-                                setTimeout(() => {
-                                    triggerProactiveInsight();
-                                }, 3000);
+                                setTimeout(() => triggerProactiveInsight(), 10000);
                             }
                         }
                     }
-                }, 800);
+                }
+            }, 800);
             }
 
             // --- Proactive Interaction Logic ---
             window._appliedRecommendations = []; // 初始化已執行建議的記憶庫
             window._proactiveTriggered = false; // 紀錄是否已經觸發過主導建議
+            window._bannerState = { title: null, subtitle: null, description: null }; // 暫存 Banner 文字內容，避免不同 Agent 重疊時覆寫
+
+            function spawnAgentBubble(agentColorClass, emoji, callback) {
+                const dot = document.querySelector(`.${agentColorClass}`);
+                if (!dot) return;
+                const container = dot.closest('.agent-status');
+                if (!container) return;
+
+                // 清除舊的泡泡
+                const old = container.querySelectorAll('.notification-bubble');
+                old.forEach(b => b.remove());
+
+                const bubble = document.createElement('div');
+                bubble.className = 'notification-bubble';
+                // 支援多個 Emoji
+                const emojis = Array.isArray(emoji) ? emoji : [emoji];
+                bubble.innerHTML = `<span class="bubble-emoji">${emojis.join('')}</span>`;
+                container.appendChild(bubble);
+
+                // 增加點擊時的愛心/讚特效
+                bubble.onclick = (e) => {
+                    e.stopPropagation();
+                    for(let i=0; i<5; i++) {
+                        const float = document.createElement('div');
+                        float.className = 'bubble-float';
+                        float.innerText = Math.random() > 0.5 ? '❤️' : '👍';
+                        float.style.setProperty('--startX', (Math.random() * 40 - 20) + 'px');
+                        float.style.setProperty('--endX', (Math.random() * 80 - 40) + 'px');
+                        float.style.animation = `float-up ${1 + Math.random()}s ease-out forwards`;
+                        bubble.appendChild(float);
+                        setTimeout(() => float.remove(), 2000);
+                    }
+                    if (callback) callback();
+                };
+
+                setTimeout(() => bubble.classList.add('show'), 100);
+                return bubble;
+            }
 
             function triggerProactiveInsight() {
                 const analystDot = document.querySelector('.color-analyst');
                 if (!analystDot) return;
 
-                // 找尋還沒執行過的建議
-                const canvas = document.getElementById('banner-artboard');
-                const isSquare = canvas ? (canvas.offsetWidth === canvas.offsetHeight) : false;
-                
                 const allInsights = [
-                    { id: 'ratio_4_5_dark', text: "Based on 80% mobile traffic: Recommend VI Designer to update layout to 4:5 ratio and Dark Mode for better visibility." },
-                    { id: 'shorten_text', text: "Content Analysis: Engagement drops on long descriptions. Recommend Editorial to shorten the text by 30%." }
+                    { 
+                        id: 'ratio_4_5_dark', 
+                        text: "Based on 80% mobile traffic: Recommend VI Designer to update layout to 4:5 ratio and Dark Mode for better visibility.", 
+                        emoji: '💡',
+                        role: 'analyst' 
+                    },
+                    { 
+                        id: 'full_background', 
+                        text: "Visual Insight: Dark theme looks a bit empty. Recommend switching to Full Background image for a more immersive 4:5 mobile experience.", 
+                        emoji: '💡', 
+                        role: 'vi' 
+                    },
+                    { 
+                        id: 'editor_japanese_localization', 
+                        text: "Editorial Insight: 30% of visitors are from Tokyo. Recommend adding a Japanese version for better local reach?", 
+                        emoji: '💡', 
+                        role: 'editor' 
+                    }
                 ];
 
-                // 過濾掉已經在記憶庫中的建議
-                const availableInsights = allInsights.filter(insight => !window._appliedRecommendations.includes(insight.id));
+                // 嚴格順序過濾：鏈條式觸發
+                const availableInsights = allInsights.filter(insight => {
+                    const alreadyApplied = window._appliedRecommendations.includes(insight.id);
+                    if (alreadyApplied) return false;
+
+                    if (insight.id === 'full_background') {
+                        // 只有套用了 4:5 才能出 Full BG
+                        return window._appliedRecommendations.includes('ratio_4_5_dark');
+                    }
+                    if (insight.id === 'editor_japanese_localization') {
+                        // 只有套用了 Full BG 才能出日文翻譯
+                        return window._appliedRecommendations.includes('full_background');
+                    }
+                    // 第一個建議不需要前置條件
+                    return insight.id === 'ratio_4_5_dark';
+                });
                 
                 if (availableInsights.length === 0) {
-                    // 如果所有建議都執行過了，就安靜不說話
+                    console.log("%c[PROACTIVE]%c Recommendation chain complete or no pending insights.", "color: #888;", "");
                     return;
                 }
 
-                // 優先權邏輯：如果是首個建議且內容包含了 Dark Mode/Ratio
-                let selectedInsightObj = availableInsights.find(i => i.id === 'ratio_4_5_dark') || availableInsights[0];
+                // 按照順序選擇第一個可用的建議
+                let selected = availableInsights[0];
+                
+                const targetRole = selected.role || 'analyst';
+                const dotClass = `color-${targetRole}`;
+                
+                console.log(`%c[PROACTIVE]%c Triggering Insight: ${selected.id} for ${targetRole}`, "color: #5062c8; font-weight:bold;");
 
-                // 1. Analyst 亮起紅點通知
-                analystDot.classList.remove('state-idle', 'state-completed');
-                analystDot.classList.add('state-notice');
-                showAgentConsoleMessage('color-analyst', 'Analyst is generating data-driven feedback...', 3000, 30, '🚨');
+                // 1. 顯示 Console 訊息
+                let displayRole = 'Analyst';
+                if (targetRole === 'vi') displayRole = 'VI Designer';
+                if (targetRole === 'editor') displayRole = 'Editorial';
+                
+                showAgentConsoleMessage(dotClass, `${displayRole} is generating ${targetRole === 'editor' ? 'content-driven' : (targetRole === 'vi' ? 'creative' : 'data-driven')} feedback...`, 3000, 30, selected.emoji);
 
-                // 2. 幾秒後生成一個 Unassigned (White) Note，代表交由 PM 決策
-                setTimeout(() => {
-                    const canvas = document.getElementById('banner-artboard');
+                // 2. 顯示泡泡 (單個 Emoji)
+                spawnAgentBubble(dotClass, selected.emoji, () => {
+                    createStickyFromRecommendation(selected);
+                    const b = document.querySelector(`.${dotClass}`).closest('.agent-status').querySelector('.notification-bubble');
+                    if (b) {
+                        b.classList.remove('show');
+                        setTimeout(() => b.remove(), 400);
+                    }
+                });
+            }
+
+            function createStickyFromRecommendation(selectedInsightObj) {
+                    const canvasBoard = document.body; // Create note on the main body
                     let targetX = window.innerWidth / 2;
                     let targetY = window.innerHeight / 2;
                     
+                    const canvas = document.getElementById('banner-artboard');
                     if (canvas) {
                         const rect = canvas.getBoundingClientRect();
-                        targetX = rect.right - 100;
+                        targetX = rect.left + 50; // Place on the left side of banner
                         targetY = rect.top + 50;
                     }
                     
                     const pos = getSafePosition(targetX, targetY);
 
-                    // 生成白色 Note (Unassigned)，並標註來自 Analyst，交給 Chief Curator (User) 決定
-                    const roleName = 'Unassigned (Chief Curator)';
-                    const bgColor = '#fefefe';
+                    // --- MATCH UI COLOR TO THE ORIGINATING AGENT (UPDATED PER README) ---
+                    const targetRole = selectedInsightObj.role || 'analyst';
+                    const roleColors = {
+                        'analyst': { name: 'ANALYST', color: '#5062c8' },
+                        'vi': { name: 'VI DESIGNER', color: '#ce538a' }, // PINK from README
+                        'editor': { name: 'EDITORIAL', color: '#6bcdcf' }, // TEAL from README
+                        'pm': { name: 'PROJECT MANAGER', color: '#f1a456' }, // ORANGE from README
+                        'tech': { name: 'TECH PRODUCER', color: '#272a3a' } // DARK from README
+                    };
+                    const agentConfig = roleColors[targetRole] || roleColors['analyst'];
                     
                     const newNote = document.createElement('div');
-                    newNote.className = 'sticky-note animate-in light-theme';
-                    newNote.style.backgroundColor = bgColor;
+                    newNote.className = `sticky-note animate-in light-theme role-${targetRole}`;
+                    newNote.style.backgroundColor = '#fefefe';
                     newNote.style.left = `${pos.x}px`;
                     newNote.style.top = `${pos.y}px`;
                     newNote.style.zIndex = ++zIndexCounter;
-                    newNote.dataset.recommendationId = selectedInsightObj.id; // 記錄 ID
+                    newNote.dataset.recommendationId = selectedInsightObj.id; 
 
                     newNote.innerHTML = `
                         <div class="note-header" style="cursor: move;">
                             <span class="delete-btn">✕</span>
                         </div>
-                        <div style="font-size: 9px; color: #5062c8; font-weight: 800; margin-bottom: 8px; letter-spacing: 1px;">ANALYST RECOMMENDATION</div>
+                        <div style="font-size: 9px; color: ${agentConfig.color}; font-weight: 800; margin-bottom: 8px; letter-spacing: 1px;">
+                            ${agentConfig.name} RECOMMENDATION
+                        </div>
                         <div class="note-content" contenteditable="true">${selectedInsightObj.text}</div>
                         <div class="note-footer" style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 15px;">
                             <button class="dismiss-btn" style="background: none; border: 1px solid #ddd; border-radius: 4px; font-size: 10px; padding: 4px 10px; cursor: pointer; color: #888; transition: all 0.2s;">Dismiss</button>
-                            <button class="apply-btn" style="background: #5062c8; border: none; border-radius: 4px; font-size: 10px; padding: 4px 12px; cursor: pointer; color: white; font-weight: 700; transition: all 0.2s;">Apply</button>
+                            <button class="apply-btn" style="background: ${agentConfig.color}; border: none; border-radius: 4px; font-size: 10px; padding: 4px 12px; cursor: pointer; color: white; font-weight: 700; transition: all 0.2s;">Apply</button>
                         </div>
                     `;
                     
@@ -1251,20 +1810,72 @@
                     makeDraggable(newNote);
 
                     // 綁定 Apply 按鈕
-                    newNote.querySelector('.apply-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const contentDiv = newNote.querySelector('.note-content');
-                        const text = contentDiv.innerText.trim();
+                    newNote.querySelector('.apply-btn').addEventListener('click', async () => {
+                        const text = newNote.querySelector('.note-content').innerText.trim();
                         
-                        // 視覺效果：隱藏按鈕
-                        newNote.querySelector('.note-footer').style.opacity = '0';
-                        
-                        // 觸發 PM 邏輯 (因為 Recommendation 通常需要 PM 協調各 Agent)
-                        processTask(text, newNote);
+                        // 立即移除 Apply/Dismiss 按鈕，防止重複點擊
+                        const footer = newNote.querySelector('.note-footer');
+                        if (footer) footer.remove();
                         
                         const recId = newNote.dataset.recommendationId;
                         if (recId && !window._appliedRecommendations.includes(recId)) {
                             window._appliedRecommendations.push(recId);
+                        }
+
+                        // PM acknowledges every Apply before dispatching to the right agent
+                        const sessionId = 'sess_' + Date.now();
+                        showAgentConsoleMessage('color-pm', `PM: Received recommendation — reviewing & dispatching...`, 2000, 30, '📋');
+                        const pmDot = document.querySelector('.color-pm');
+                        if (pmDot) {
+                            pmDot.classList.replace('state-idle', 'state-executing');
+                            pmDot.classList.replace('state-completed', 'state-executing');
+                        }
+
+                        // --- FIX: Route by recId directly to avoid PM restarting full pipeline ---
+                        // --- 特殊連動：Analyst 建議被 Apply 後，觸發 Designer 建議 ---
+                        if (recId === 'ratio_4_5_dark') {
+                            await openPMSession(sessionId, ['vi']);
+                            showAgentConsoleMessage('color-pm', `PM: Dispatching layout update to VI Designer...`, 2000, 20);
+                            triggerRevision('VI Designer', text, newNote, { sessionId });
+                            console.log("%c[SYSTEM]%c Analyst suggestion applied. Triggering Designer follow-up in 5s.", "color: #5062c8; font-weight:bold;");
+                            const analystDot = document.querySelector('.color-analyst');
+                            if (analystDot) {
+                                analystDot.classList.remove('active');
+                                analystDot.innerHTML = '';
+                            }
+                            setTimeout(() => {
+                                if (typeof triggerProactiveInsight === 'function') {
+                                    triggerProactiveInsight();
+                                }
+                            }, 5000);
+
+                        // --- 特殊連動：Designer 建議被 Apply 後 ---
+                        } else if (recId === 'full_background') {
+                            await openPMSession(sessionId, ['vi']);
+                            showAgentConsoleMessage('color-pm', `PM: Dispatching Full Background layout to VI Designer...`, 2000, 20);
+                            triggerRevision('VI Designer', text, newNote, { sessionId });
+                            console.log("%c[SYSTEM]%c Designer suggestion applied. Triggering Editor localization in 5s.", "color: #ce538a; font-weight:bold;");
+                            const designerDot = document.querySelector('.color-vi');
+                            if (designerDot) {
+                                designerDot.classList.remove('active');
+                                designerDot.innerHTML = '';
+                            }
+                            setTimeout(() => {
+                                if (typeof triggerProactiveInsight === 'function') {
+                                    triggerProactiveInsight();
+                                }
+                            }, 5000);
+
+                        // --- 特殊連動：Editor 日文建議被 Apply 後 (BUG FIX: 直接給 Editor，不經 PM) ---
+                        } else if (recId === 'editor_japanese_localization') {
+                            await openPMSession(sessionId, ['editor']);
+                            showAgentConsoleMessage('color-pm', `PM: Dispatching Japanese localization to Editorial...`, 2000, 20);
+                            console.log("%c[SYSTEM]%c Editor suggestion applied. Translating to Japanese...", "color: #6bcdcf; font-weight:bold;");
+                            triggerRevision('Editorial', 'Translate to Japanese', newNote, { sessionId });
+
+                        } else {
+                            // 一般便利貼 (非 recommendation 鏈)，才走 processTask
+                            processTask(text, newNote);
                         }
                     });
 
@@ -1284,94 +1895,9 @@
                         }, 500);
 
                         showAgentConsoleMessage('color-analyst', 'Recommendation dismissed.', 3000, 30, '📁');
-
-                        const analystDot = document.querySelector('.color-analyst');
-                        if (analystDot) {
-                            analystDot.classList.remove('state-notice');
-                            analystDot.classList.add('state-idle');
-                        }
                     });
-
-                    // 綁定 X 刪除按鈕，點擊後清除 Analyst 紅點
-                    newNote.querySelector('.delete-btn').addEventListener('click', () => {
-                        const recId = newNote.dataset.recommendationId;
-                        if (recId && !window._appliedRecommendations.includes(recId)) {
-                            window._appliedRecommendations.push(recId);
-                        }
-                        newNote.remove();
-                        const analystDot = document.querySelector('.color-analyst');
-                        if (analystDot) {
-                            analystDot.classList.remove('state-notice');
-                            analystDot.classList.add('state-idle');
-                        }
-                    });
-
-                    // 重新綁定事件：當 Chief Curator 下達決定（Blur 或 Enter）
-                    const contentDiv = newNote.querySelector('.note-content');
-                    
-                    contentDiv.addEventListener('keydown', function(e) {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            this.blur();
-                        }
-                    });
-
-                    contentDiv.addEventListener('blur', function() {
-                        const text = this.innerText.trim();
-                        if (text.length > 3 && !this.dataset.pmTriggered) {
-                            this.dataset.pmTriggered = "true";
-                            
-                            // Define detection logic inside the blur handler
-                            const isDesignerJob = text.toLowerCase().includes('designer') || text.includes('4:5') || text.includes('dark');
-                            const isEditorJob = text.toLowerCase().includes('editor') || text.toLowerCase().includes('shorten');
-                            const isTechJob = text.toLowerCase().includes('export') || text.toLowerCase().includes('copy') || text.toLowerCase().includes('clipboard');
-
-                            // 記錄到記憶庫中，下次不再建議
-                            const recId = newNote.dataset.recommendationId;
-                            if (recId && !window._appliedRecommendations.includes(recId)) {
-                                window._appliedRecommendations.push(recId);
-                            }
-
-                            // 視覺化回饋：顯示 PM 收到指令並開始分派工作
-                            showAgentConsoleMessage('color-pm', 'Chief Curator approved! PM is now orchestrating...', 4000, 30, '🔥');
-                            
-                            // PM logic: If it's a Tech Job (Export/Copy), ensure it waits for any active design/editorial work
-                            if (isTechJob) {
-                                const activeDots = document.querySelectorAll('.state-executing:not(.color-tech):not(.color-pm), .state-completed:not(.color-tech):not(.color-pm)');
-                                if (activeDots.length > 0) {
-                                    showAgentConsoleMessage('color-pm', 'Waiting for final design refinements before export...', 3000, 30, '⏳');
-                                    setTimeout(() => {
-                                        processTask(text, newNote);
-                                        triggerRevision('Tech Producer', text, newNote);
-                                    }, 2000); // 2s buffer for layout to settle
-                                    return;
-                                }
-                            }
-
-                            // 呼叫 PM 的 Orchestrator 進行後續分派
-                            processTask(text, newNote);
-
-                            if (isDesignerJob) {
-                                triggerRevision('VI Designer', text, newNote);
-                            } else if (isEditorJob) {
-                                triggerRevision('Editorial', text, newNote);
-                            } else {
-                                // If it's a generic command, also mark as complete after a while
-                                setTimeout(() => markNoteCompleted(newNote), 3000);
-                            }
-
-                            // 決策下達後，恢復 Analyst 狀態
-                            const analystDot = document.querySelector('.color-analyst');
-                            if (analystDot) {
-                                analystDot.classList.remove('state-notice');
-                                analystDot.classList.add('state-idle');
-                            }
-                        }
-                    });
-
-                    showAgentConsoleMessage('color-analyst', 'Recommendation passed to Chief Curator!', 4000, 30, '🎁');
-                }, 4000);
             }
+
         // --- DOM Collaborative Banner Actions ---
 
         function makeDraggableResult(element, handle) {
@@ -1460,29 +1986,29 @@
                         </div>
                     </div>
 
-                    <div id="banner-text-area" style="width: ${textAreaWidth}; height: ${textAreaHeight}; padding: ${dynamicPadding}; display:flex; flex-direction:column; justify-content:center; box-sizing: border-box; opacity: 1; transition: opacity 1s, transform 1s; z-index:2; background:#fff;">
-                        <h1 id="banner-headline" style="font-size: ${dynamicFontSize}; font-weight: 800; margin:0 0 10px 0; color:#222; font-family:sans-serif; line-height:1.1; letter-spacing: -1px; transition: all 0.4s;"></h1>
-                        <p id="banner-subtext" style="font-size: ${dynamicSubfontSize}; color:#444; font-weight: 500; margin:0 0 16px 0; line-height:1.4; transition: all 0.4s;"></p>
+                    <div id="banner-text-area" style="width: ${textAreaWidth}; height: ${textAreaHeight}; padding: ${dynamicPadding}; display:flex; flex-direction:column; justify-content:center; box-sizing: border-box; opacity: 1; transition: opacity 1s, transform 1s; z-index:2; background:#fff; overflow:hidden;">
+                        <h1 id="banner-headline" style="font-size: ${dynamicFontSize}; font-weight: 800; margin:0 0 10px 0; color:#222; font-family:sans-serif; line-height:1.1; letter-spacing: -1px; transition: all 0.4s; word-wrap: break-word; overflow-wrap: break-word; hyphens: auto;"></h1>
+                        <p id="banner-subtext" style="font-size: ${dynamicSubfontSize}; color:#444; font-weight: 500; margin:0 0 16px 0; line-height:1.4; transition: all 0.4s; word-wrap: break-word;"></p>
                         
-                        <div id="banner-meta" style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; font-size: ${dynamicMetaSize}; font-weight: 500; color: #666; transition: all 0.4s; opacity: 0; align-items: center;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <i data-lucide="user" style="width: 14px; height: 14px; color: #888;"></i>
+                        <div id="banner-meta" style="display: flex; flex-wrap: nowrap; gap: 8px; margin-bottom: 12px; font-size: calc(${dynamicMetaSize} * 0.85); font-weight: 500; color: #666; transition: all 0.4s; opacity: 0; align-items: center; overflow: hidden; white-space: nowrap;">
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                <i data-lucide="user" style="width: 12px; height: 12px; color: #888; flex-shrink: 0;"></i>
                                 <span id="banner-artist"></span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <i data-lucide="map-pin" style="width: 14px; height: 14px; color: #888;"></i>
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                <i data-lucide="map-pin" style="width: 12px; height: 12px; color: #888; flex-shrink: 0;"></i>
                                 <span id="banner-venue"></span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <i data-lucide="calendar" style="width: 14px; height: 14px; color: #888;"></i>
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                <i data-lucide="calendar" style="width: 12px; height: 12px; color: #888; flex-shrink: 0;"></i>
                                 <span id="banner-date"></span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <i data-lucide="layers" style="width: 14px; height: 14px; color: #888;"></i>
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                <i data-lucide="layers" style="width: 12px; height: 12px; color: #888; flex-shrink: 0;"></i>
                                 <span id="banner-count"></span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <i data-lucide="trending-up" style="width: 14px; height: 14px; color: #888;"></i>
+                            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                                <i data-lucide="trending-up" style="width: 12px; height: 12px; color: #888; flex-shrink: 0;"></i>
                                 <span id="banner-stats" style="color: #666; font-weight: 500;"></span>
                             </div>
                         </div>
@@ -1628,19 +2154,30 @@
                     subtext.style.opacity = '1';
                     if(desc) desc.style.opacity = '1';
 
+                    // 初始化暫存狀態，確保第一次生成後 Designer 也能讀取到文字
+                    if (!window._bannerState) window._bannerState = {};
+                    window._bannerState.title = headline.innerText;
+                    window._bannerState.subtitle = subtext.innerText;
+                    if(desc) window._bannerState.description = desc.innerText;
+
                     // Recursive Smart Typography Scaling
                     setTimeout(() => {
                         let baseSize = (document.getElementById('banner-artboard').offsetWidth < 450) ? 28 : 42;
                         headline.style.fontSize = baseSize + 'px';
                         
                         function performScaleDown() {
-                            const isOverflowing = textArea.scrollHeight > textArea.clientHeight || 
-                                                 headline.scrollWidth > textArea.clientWidth - 40;
+                            const container = document.getElementById('banner-text-area');
+                            const isOverflowing = container.scrollHeight > container.clientHeight || 
+                                                 headline.scrollWidth > container.clientWidth - 40;
                             
-                            if (isOverflowing && baseSize > 16) {
+                            if (isOverflowing && baseSize > 12) {
                                 baseSize -= 1;
                                 headline.style.fontSize = baseSize + 'px';
-                                requestAnimationFrame(performScaleDown); // Smooth recursive check
+                                // Also slightly shrink subtext if headline is getting too small
+                                if (baseSize < 28) {
+                                    subtext.style.fontSize = Math.max(12, baseSize * 0.5) + 'px';
+                                }
+                                requestAnimationFrame(performScaleDown);
                             }
                         }
                         performScaleDown();
@@ -1685,7 +2222,7 @@
             }, 600);
         }
         // --- Simulated Agent Triggers from Stickies --- //
-        function triggerRevision(role, instructions, noteElement) {
+        function triggerRevision(role, instructions, noteElement, extra = {}) {
             // Log entry for debugging if noteElement is passed
             if (noteElement) {
                 console.log(`%c[REVISION_START]%c Triggered for ${role} with noteElement.`, "color: #9c27b0; font-weight:bold;", "color:#555");
@@ -1739,52 +2276,62 @@
                         setTimeout(() => {
                             const currentH = headline.innerText.toLowerCase();
                             
-                            // Specific check for "more text" logic
-                            if (isMoreText && desc) {
-                                let newInfo = "";
-                                if (isJapanese) newInfo = " この展示は、デジタル時代における表現の限界に挑戦し、新たな視覚的体験を提供します。";
-                                else if (isChinese) newInfo = " 這場數位展覽挑戰了當代藝術的表達邊界，旨在為觀眾帶來前所未有的視覺饗宴與感官共鳴。";
-                                else newInfo = " This digital exhibition challenges the boundaries of contemporary expression, offering an unprecedented visual journey for global audiences.";
+                            // --- IF DATA IS PROVIDED VIA EXTRA OBJECT ---
+                            // 修正：如果已經是日文狀態 (isJapanese)，不要用 extra 裡面的英文原始資料覆蓋它
+                            if (!isJapanese && extra && (extra.title || extra.ex_title) && !isMoreText) {
+                                const realTitle = extra.title || extra.ex_title || "";
+                                headline.innerText = realTitle.toUpperCase();
                                 
-                                // Append if not already there
-                                if (!desc.innerText.includes(newInfo.trim())) {
-                                    desc.innerText += newInfo;
+                                const realSubtitle = extra.subtitle || extra.ex_subtitle || "";
+                                if (realSubtitle) subtext.innerText = realSubtitle;
+                                
+                                const realDesc = extra.description || extra.overview || extra.ex_description || "";
+                                if (realDesc && desc) {
+                                    desc.innerText = realDesc;
                                     desc.style.display = 'block';
-                                    desc.style.webkitLineClamp = 'none'; // Allow more text
                                 }
+                                
+                                headline.style.opacity = '1';
+                                subtext.style.opacity = '1';
+                                if(desc) desc.style.opacity = '1';
+
+                                // 更新暫存狀態，確保後續 Designer 套用版面時能讀取到最新文字
+                                window._bannerState.title = headline.innerText;
+                                window._bannerState.subtitle = subtext.innerText;
+                                if(desc) window._bannerState.description = desc.innerText;
+
+                                if(dot) dot.classList.replace('state-executing', 'state-completed');
+                                markNoteCompleted(noteElement);
+                                if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'editor');
+                                return;
                             }
 
+                            // If we don't have 'extra' data, but we have instructions that are NOT "more text", 
+                            // we fall back to mock translations.
                             if (isJapanese) {
+                                // 標記 ID 以完成建議鏈
+                                window._appliedRecommendations.push('editor_japanese_localization');
+                                
                                 if(currentH.includes("furobot") || currentH.includes("pop art")) {
                                     headline.innerText = "FUROBOT";
                                     subtext.innerText = "東洋と西洋のポップアートの対話";
-                                    if(desc) {
-                                        desc.innerText = `今週金曜日から kurodot.io で開催される、${artistName}による10点の独占的な傑作。人間と機械の相互作用を再定義します。`;
-                                        desc.style.borderTop = '1px solid #eee';
-                                    }
+                                    if(desc) desc.innerText = `今週金曜日から kurodot.io で開催される、${artistName}による10点の独占的な傑作。人間と機械の相互作用を再定義します。`;
                                 } else if(currentH.includes("snowday") || currentH.includes("雪")) {
                                     headline.innerText = "スノーデイ：次元を超えて";
                                     subtext.innerText = "インクから物質へ，物質から機械知能へ";
                                 } else if(currentH.includes("bauhaus") || currentH.includes("藍圖") || currentH.includes("blueprint")) {
-                                    headline.innerText = "バウハウスの設計図";
-                                    subtext.innerText = "モダニズムと幾何學的純粋さの基礎を探求する。";
+                                    headline.innerText = "バウハウスの設計圖";
+                                    subtext.innerText = "モダニズムと幾何學的純粹さの基礎を探求する。";
                                 } else {
                                     headline.innerText = "次元を超越する展示";
                                     subtext.innerText = "デジタルツインによる空間と構造の再構築";
-                                    if(desc) {
-                                        desc.innerText = "オンライン限定の統一された空間體驗。現代美術の新たな対話探求。";
-                                        desc.style.borderTop = '1px solid #eee';
-                                    }
                                 }
                             } 
                             else if (isChinese) {
                                 if(currentH.includes("furobot") || currentH.includes("pop art")) {
                                     headline.innerText = "FUROBOT";
                                     subtext.innerText = "一場東西方波普藝術的對話";
-                                    if(desc) {
-                                        desc.innerText = `本週五起在 kurodot.io 展出，由 ${artistName} 創作的10件獨家傑作。這場策展重新定義了人類與機器之間的互動。`;
-                                        desc.style.borderTop = '1px solid #eee';
-                                    }
+                                    if(desc) desc.innerText = `由 ${artistName} 創作的獨家傑作，重新定義了人類與機器的互動。`;
                                 } else if(currentH.includes("snowday") || currentH.includes("次元")) {
                                     headline.innerText = "雪日：跨越維度的對話";
                                     subtext.innerText = "從墨水到物質，從物質到機器智能";
@@ -1812,7 +2359,7 @@
                                     headline.innerText = "FUROBOT";
                                     subtext.innerText = "A Pop Art Dialogue Between East and West";
                                     if(desc) {
-                                        desc.innerText = `Experience an incredible journey starting this Friday at kurodot.io. Featuring 10 exclusive masterpieces by ${artistName}, this curation redefines the interaction between human and machine.`;
+                                        desc.innerText = `Featuring exclusive masterpieces by ${artistName}, this curation redefines the interaction between human and machine.`;
                                         desc.style.borderTop = '1px solid #eee';
                                     }
                                 } else {
@@ -1829,8 +2376,83 @@
                             subtext.style.opacity = '1';
                             if(desc) desc.style.opacity = '1';
                             
+                            // 更新暫存狀態，確保後續 Designer 套用版面時能讀取到最新文字
+                            window._bannerState.title = headline.innerText;
+                            window._bannerState.subtitle = subtext.innerText;
+                            if(desc) window._bannerState.description = desc.innerText;
+
                             if(dot) dot.classList.replace('state-executing', 'state-completed');
                             markNoteCompleted(noteElement);
+                            if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'editor');
+
+                            // 鏈條式觸發：Editor 套用後，若是日文翻譯，Designer 介入重新調整 padding/layout
+                            if (isJapanese) {
+                                setTimeout(() => {
+                                    showAgentConsoleMessage('color-vi', 'VI Designer: Reflowing layout after localization...', 3000, 20);
+                                    const viDot = document.querySelector('.color-vi');
+                                    if (viDot) {
+                                        viDot.classList.replace('state-idle', 'state-executing');
+                                        viDot.classList.replace('state-completed', 'state-executing');
+                                    }
+                                    // Reapply current layout style to recalculate padding/font sizes
+                                    const canvas = document.getElementById('banner-artboard');
+                                    const textArea = document.getElementById('banner-text-area');
+                                    const headline = document.getElementById('banner-headline');
+                                    const subtext = document.getElementById('banner-subtext');
+                                    const meta = document.getElementById('banner-meta');
+                                    const desc = document.getElementById('banner-desc');
+                                    if (canvas && textArea) {
+                                        const containerWidth = canvas.offsetWidth;
+                                        const containerHeight = canvas.offsetHeight;
+                                        const isPortrait = containerHeight > containerWidth;
+                                        // Recalculate dynamic padding to fit Japanese text snugly
+                                        const dynPad = Math.max(20, Math.min(containerWidth * 0.08, 40));
+                                        textArea.style.padding = isPortrait ? `${dynPad}px ${dynPad}px` : `${dynPad}px`;
+                                        textArea.style.boxSizing = 'border-box';
+                                        textArea.style.display = 'flex';
+                                        textArea.style.flexDirection = 'column';
+                                        textArea.style.justifyContent = 'flex-end';
+                                        // Smart font scaling for Japanese characters
+                                        let fontSize = isPortrait ? containerWidth * 0.11 : containerWidth * 0.06;
+                                        fontSize = Math.max(22, Math.min(fontSize, 52));
+                                        if (headline) {
+                                            headline.style.fontSize = fontSize + 'px';
+                                            headline.style.lineHeight = '1.1';
+                                            headline.style.wordBreak = 'break-word';
+                                        }
+                                        if (subtext) {
+                                            subtext.style.fontSize = Math.max(14, fontSize * 0.4) + 'px';
+                                            subtext.style.margin = `${dynPad * 0.3}px 0`;
+                                        }
+                                        if (meta) {
+                                            meta.style.marginTop = `${dynPad * 0.5}px`;
+                                            meta.style.flexWrap = 'wrap';
+                                        }
+                                        if (desc) {
+                                            desc.style.marginTop = `${dynPad * 0.4}px`;
+                                            desc.style.paddingTop = `${dynPad * 0.4}px`;
+                                            desc.style.fontSize = Math.max(11, fontSize * 0.28) + 'px';
+                                            desc.style.webkitLineClamp = 'none';
+                                            desc.style.overflow = 'visible';
+                                            desc.style.maxHeight = 'none';
+                                        }
+                                        // Auto-shrink if still overflowing
+                                        let attempts = 0;
+                                        while (textArea.scrollHeight > textArea.clientHeight && attempts < 30) {
+                                            fontSize -= 1;
+                                            if (headline) headline.style.fontSize = fontSize + 'px';
+                                            if (subtext) subtext.style.fontSize = Math.max(12, fontSize * 0.4) + 'px';
+                                            if (desc) desc.style.fontSize = Math.max(10, fontSize * 0.28) + 'px';
+                                            attempts++;
+                                        }
+                                    }
+                                    if (viDot) viDot.classList.replace('state-executing', 'state-completed');
+                                    showAgentConsoleMessage('color-vi', 'VI Designer: Layout reflow complete. ✓', 2000, 20);
+                                }, 800);
+                            } else {
+                                // 其他語言：再次檢查是否有後續建議
+                                setTimeout(() => triggerProactiveInsight(), 3000);
+                            }
                         }, 500);
                     }
                 }, 1500);
@@ -1848,6 +2470,17 @@
                     const subtext = document.getElementById('banner-subtext');
                     const meta = document.getElementById('banner-meta');
                     const desc = document.getElementById('banner-desc');
+
+                    // 若先前有 Editorial 翻譯過的文字，在此處恢復
+                    if (window._bannerState && window._bannerState.title && headline) {
+                        headline.innerText = window._bannerState.title;
+                    }
+                    if (window._bannerState && window._bannerState.subtitle && subtext) {
+                        subtext.innerText = window._bannerState.subtitle;
+                    }
+                    if (window._bannerState && window._bannerState.description && desc) {
+                        desc.innerText = window._bannerState.description;
+                    }
 
                     let ratioMatch = instructions.match(/(\d+):(\d+)/);
                     if (instructions.toLowerCase().includes('square')) ratioMatch = [null, '1', '1'];
@@ -1888,11 +2521,13 @@
                         if(subtext) subtext.style.color = 'rgba(255,255,255,0.9)';
                         if(meta) {
                             meta.style.color = 'rgba(255,255,255,0.7)';
-                            meta.querySelectorAll('i').forEach(i => i.style.color = 'rgba(255,255,255,0.6)');
+                            // Target both <i> (pre-Lucide) and <svg> (post-Lucide replacement)
+                            meta.querySelectorAll('i, svg').forEach(el => {
+                                el.style.color = 'rgba(255,255,255,0.6)';
+                                el.style.stroke = 'rgba(255,255,255,0.6)';
+                            });
                             const stats = document.getElementById('banner-stats');
                             if(stats) stats.style.color = '#fff';
-                            const statsIcon = meta.querySelector('[data-lucide="trending-up"]');
-                            if(statsIcon) statsIcon.style.color = '#fff';
                         }
                         if(desc) {
                             desc.style.color = 'rgba(255,255,255,0.6)';
@@ -2030,8 +2665,12 @@
                         }
                         const meta = document.getElementById('banner-meta');
                         if (meta) {
-                            meta.style.color = '#888888';
-                            meta.querySelectorAll('i').forEach(i => i.style.color = '#666');
+                            meta.style.color = 'rgba(255,255,255,0.6)';
+                            // Target both <i> (pre-Lucide) and <svg> (post-Lucide replacement)
+                            meta.querySelectorAll('i, svg').forEach(el => {
+                                el.style.color = 'rgba(255,255,255,0.5)';
+                                el.style.stroke = 'rgba(255,255,255,0.5)';
+                            });
                             const stats = document.getElementById('banner-stats');
                             if (stats) stats.style.color = '#ffffff';
                         }
@@ -2100,30 +2739,180 @@
                                 const isPortrait = containerHeight > containerWidth;
                                 
                                 // Smart Spacing & Padding
-                                const dynamicPadding = Math.max(20, Math.min(containerWidth * 0.08, 60));
+                                const dynamicPadding = Math.max(20, Math.min(containerWidth * 0.08, 40));
                                 textArea.style.padding = `${dynamicPadding}px`;
+                                textArea.style.overflow = 'hidden';
+                                textArea.style.display = 'flex';
+                                textArea.style.flexDirection = 'column';
+                                textArea.style.justifyContent = 'center';
                                 
-                                if (subtext) subtext.style.margin = `${dynamicPadding * 0.4}px 0`;
-                                if (meta) meta.style.gap = `${dynamicPadding * 0.5}px`;
-                                if (desc) desc.style.marginTop = `${dynamicPadding * 0.6}px`;
+                                if (subtext) subtext.style.margin = `${dynamicPadding * 0.3}px 0`;
+                                if (meta) {
+                                    meta.style.gap = `${dynamicPadding * 0.4}px`;
+                                    meta.style.flexWrap = 'wrap'; // Allow meta to wrap into multiple lines if needed
+                                    meta.style.maxHeight = 'none';
+                                }
+                                if (desc) {
+                                    desc.style.marginTop = `${dynamicPadding * 0.4}px`;
+                                    desc.style.paddingTop = `${dynamicPadding * 0.4}px`;
+                                    desc.style.display = 'block';
+                                    desc.style.webkitLineClamp = 'none'; // REMOVE CLAMP
+                                    desc.style.lineClamp = 'none';
+                                    desc.style.maxHeight = 'none';
+                                    desc.style.overflow = 'visible';
+                                }
 
                                 // Smart Font Scaling
-                                let fontSize = isPortrait ? (containerWidth * 0.1) : (containerWidth * 0.06);
-                                fontSize = Math.max(24, Math.min(fontSize, 64)); // Clamp
+                                let fontSize = isPortrait ? (containerWidth * 0.12) : (containerWidth * 0.06);
+                                fontSize = Math.max(20, Math.min(fontSize, 52)); 
                                 
                                 headline.style.fontSize = fontSize + 'px';
-                                if (subtext) subtext.style.fontSize = (fontSize * 0.45) + 'px';
+                                headline.style.lineHeight = '1.05';
+                                if (subtext) {
+                                    subtext.style.fontSize = Math.max(14, fontSize * 0.42) + 'px';
+                                    subtext.style.display = 'block';
+                                    subtext.style.opacity = '1';
+                                }
                                 
-                                // Auto-shrink if still overflowing
+                                // FORCE ALL ELEMENTS TO BE VISIBLE + WRAP Meta
+                                if (meta) {
+                                    meta.style.display = 'flex';
+                                    meta.style.flexWrap = 'wrap';
+                                    meta.style.height = 'auto';
+                                    meta.style.overflow = 'visible';
+                                }
+
+                                // --- DESIGNER CONTENT POLICY ---
+                                // VI Designer MUST NOT modify or hide text content defined by Editorial.
+                                // Instead of hiding content when space is tight, we scale everything down.
+                                if (desc) {
+                                    desc.style.display = 'block';
+                                    desc.style.webkitLineClamp = 'none'; // Never cut text/No "..."
+                                    desc.style.lineClamp = 'none';
+                                    desc.style.maxHeight = 'none';
+                                    desc.style.overflow = 'visible';
+                                    desc.style.opacity = '1';
+                                }
+
+                                // Auto-shrink if still overflowing - SCALE EVERYTHING DOWN
                                 let attempts = 0;
-                                while (textArea.scrollHeight > textArea.clientHeight && attempts < 10) {
-                                    fontSize -= 2;
+                                while (textArea.scrollHeight > textArea.clientHeight && attempts < 40) {
+                                    fontSize -= 0.8; // Finer grain control for accurate fitting
                                     headline.style.fontSize = fontSize + 'px';
-                                    if (subtext) subtext.style.fontSize = (fontSize * 0.45) + 'px';
+                                    if (subtext) subtext.style.fontSize = Math.max(12, fontSize * 0.4) + 'px';
+                                    
+                                    // Also shrink meta and desc to ensure EVERYTHING FITS
+                                    if (meta) meta.style.fontSize = Math.max(8, fontSize * 0.25) + 'px';
+                                    if (desc) {
+                                        desc.style.fontSize = Math.max(10, fontSize * 0.3) + 'px';
+                                        desc.style.marginTop = Math.max(4, dynamicPadding * 0.2) + 'px';
+                                    }
+
+                                    // Shrink padding to preserve text density
+                                    const currentPad = parseInt(textArea.style.padding);
+                                    if (currentPad > 10) textArea.style.padding = (currentPad - 1) + 'px';
+                                    
                                     attempts++;
                                 }
                             }
                         }, 100);
+
+                        // --- FULL BACKGROUND IMPLEMENTATION ---
+                        if (instructions.toLowerCase().includes('full background') || instructions.includes('背景') || instructions.includes('immersive')) {
+                            console.log("%c[VI DESIGNER ACTION]%c Rendering Full Background immersion layout...", "color: #388E3C; font-weight:bold;");
+                            canvas.style.display = 'flex';
+                            canvas.style.flexDirection = 'column';
+                            canvas.style.justifyContent = 'flex-end'; // Align text to bottom
+                            canvas.style.alignItems = 'flex-start';
+                            canvas.style.padding = '0';
+                            canvas.style.overflow = 'hidden';
+
+                            if (imgArea) {
+                                imgArea.style.position = 'absolute';
+                                imgArea.style.top = '0';
+                                imgArea.style.left = '0';
+                                imgArea.style.width = '100%';
+                                imgArea.style.height = '100%';
+                                imgArea.style.zIndex = '1';
+                                if (imgBg) {
+                                    imgBg.style.opacity = '1'; 
+                                    imgBg.style.filter = "brightness(0.8) contrast(1.1)"; 
+                                    imgBg.style.objectFit = 'cover';
+                                }
+                                
+                                // --- ADD BLACK GRADIENT OVERLAY FOR TEXT READABILITY ---
+                                let gradientOverlay = document.getElementById('banner-gradient-overlay');
+                                if (!gradientOverlay) {
+                                    gradientOverlay = document.createElement('div');
+                                    gradientOverlay.id = 'banner-gradient-overlay';
+                                    imgArea.appendChild(gradientOverlay);
+                                }
+                                gradientOverlay.style.position = 'absolute';
+                                gradientOverlay.style.bottom = '0';
+                                gradientOverlay.style.left = '0';
+                                gradientOverlay.style.width = '100%';
+                                gradientOverlay.style.height = '60%'; // Cover bottom half
+                                gradientOverlay.style.background = 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0) 100%)';
+                                gradientOverlay.style.zIndex = '2';
+                                gradientOverlay.style.pointerEvents = 'none';
+                            }
+
+                            if (textArea) {
+                                textArea.style.position = 'relative';
+                                textArea.style.zIndex = '10';
+                                textArea.style.width = '100%';
+                                textArea.style.height = 'auto';
+                                textArea.style.padding = '60px 60px'; // Matching the layout
+                                textArea.style.marginBottom = '20px';
+                                textArea.style.textAlign = 'left';
+                                textArea.style.backgroundColor = 'transparent';
+                                textArea.style.backdropFilter = 'none';
+                                textArea.style.display = 'flex';
+                                textArea.style.flexDirection = 'column';
+                                textArea.style.gap = '10px';
+
+                                // Ensure the Avatar/Icon is visible if it exists in the markup
+                                const avatar = textArea.querySelector('.agent-avatar-small') || document.querySelector('.agent-avatar');
+                                if (avatar) {
+                                    avatar.style.display = 'block';
+                                    avatar.style.marginBottom = '15px';
+                                }
+                                
+                                if (headline) {
+                                    headline.style.fontSize = '84px'; 
+                                    headline.style.fontWeight = '900';
+                                    headline.style.color = '#ffffff';
+                                    headline.style.textShadow = '0 2px 10px rgba(0,0,0,0.3)';
+                                }
+                                if (subtext) {
+                                    subtext.style.fontSize = '28px';
+                                    subtext.style.color = '#ffffff';
+                                    subtext.style.fontWeight = '600';
+                                }
+                                const meta = document.getElementById('banner-meta');
+                                if (meta) {
+                                    meta.style.display = 'flex'; // Ensure meta row is visible
+                                    meta.style.marginTop = '15px';
+                                    meta.style.color = 'rgba(255,255,255,0.9)';
+                                    meta.style.fontSize = '14px';
+                                    meta.querySelectorAll('.meta-item').forEach(item => {
+                                        item.style.marginRight = '20px';
+                                        item.style.display = 'inline-block';
+                                    });
+                                }
+                                if (desc) {
+                                    desc.style.display = 'block';
+                                    desc.style.color = 'rgba(255,255,255,0.7)';
+                                    desc.style.fontSize = '16px';
+                                    desc.style.fontStyle = 'italic';
+                                    desc.style.marginTop = '20px';
+                                    desc.style.paddingTop = '15px';
+                                    desc.style.borderTop = '1px solid rgba(255,255,255,0.2)';
+                                    desc.style.maxWidth = '600px';
+                                    desc.style.lineHeight = '1.5';
+                                }
+                            }
+                        }
 
                         // --- FINAL DISMISSAL FOR DESIGNER ---
                         if(dot) dot.classList.replace('state-executing', 'state-completed');
@@ -2131,6 +2920,12 @@
                         if (noteElement) {
                             markNoteCompleted(noteElement);
                         }
+                        if (extra && extra.sessionId && !extra._designerDoneReported) {
+                            extra._designerDoneReported = true;
+                            reportAgentDone(extra.sessionId, 'vi');
+                        }
+                        // NOTE: chain triggerProactiveInsight is handled by the Apply button handler.
+                        // Do NOT call it here — doing so would double-fire the next recommendation log.
                     }
 
                     if (imgBg) {
@@ -2151,6 +2946,10 @@
                     if (noteElement) {
                         console.log("%c[VI DESIGNER]%c Final completion fallback triggered.", "color: #388E3C; font-weight:bold;", "color:#555");
                         markNoteCompleted(noteElement);
+                    }
+                    if (extra && extra.sessionId && !extra._designerDoneReported) {
+                        extra._designerDoneReported = true;
+                        reportAgentDone(extra.sessionId, 'vi');
                     }
                 }, 1500);
             }
@@ -2182,6 +2981,7 @@
                     const finalize = () => {
                         if(dot) dot.classList.replace('state-executing', 'state-completed');
                         markNoteCompleted(noteElement);
+                        if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'tech');
                     };
 
                         // ── Static Clone Engine ──────────────────────────────────────────────
@@ -2323,17 +3123,30 @@
                                         const itemWrap = document.createElement('div');
                                         itemWrap.style.cssText = 'display:flex; align-items:center; gap:6px;';
                                         
-                                        // Try to find if there's an icon before this text
+                                        // Try to find if there's an icon before this text.
+                                        // Lucide replaces <i data-lucide="..."> with <svg> at runtime — check SVG tag.
                                         const icon = el.previousElementSibling;
-                                        if (icon && icon.tagName === 'I' && (icon.getAttribute('data-lucide') || icon.classList.contains('lucide'))) {
+                                        const isLucideIcon = icon && (
+                                            icon.tagName === 'SVG' ||
+                                            (icon.tagName === 'I' && icon.getAttribute('data-lucide'))
+                                        );
+                                        if (isLucideIcon) {
                                             const iconStyle = getComputedStyle(icon);
-                                            const iconSpan = document.createElement('span');
-                                            iconSpan.innerHTML = icon.innerHTML; // SVG content
-                                            iconSpan.style.cssText = [
-                                                `width:${iconStyle.width}`, `height:${iconStyle.height}`,
-                                                `color:${iconStyle.color}`, 'display:flex', 'align-items:center'
-                                            ].join(';');
-                                            itemWrap.appendChild(iconSpan);
+                                            const iconW = parseInt(iconStyle.width) || 12;
+                                            const iconH = parseInt(iconStyle.height) || 12;
+                                            const iconColor = iconStyle.color || '#888888';
+                                            // Clone and resolve currentColor so SVG serializes correctly for html2canvas
+                                            const svgClone = icon.cloneNode(true);
+                                            svgClone.setAttribute('width', iconW);
+                                            svgClone.setAttribute('height', iconH);
+                                            svgClone.setAttribute('stroke', iconColor);
+                                            if (!svgClone.getAttribute('xmlns')) svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                                            const svgStr = new XMLSerializer().serializeToString(svgClone);
+                                            const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+                                            const iconImg = document.createElement('img');
+                                            iconImg.src = svgDataUrl;
+                                            iconImg.style.cssText = `width:${iconW}px;height:${iconH}px;display:block;flex-shrink:0;`;
+                                            itemWrap.appendChild(iconImg);
                                         }
 
                                         const sp = document.createElement('span');

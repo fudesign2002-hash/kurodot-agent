@@ -8,3 +8,12 @@ TEST_INSTRUCTION = "Create a 3:2 banner from this exhibition"
 
 # Vercel Automation Bypass Secret
 VERCEL_BYPASS_TOKEN = "kkfOVYrg2zWFGANE7QgSqWFii9R3bUEF"
+
+# Agent Constants
+AGENT_ROLES = {
+    "pm": "Project Manager",
+    "designer": "VI Designer",
+    "editor": "Editor",
+    "analyst": "Data Analyst",
+    "tech": "Tech Producer"
+}

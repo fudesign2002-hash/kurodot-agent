@@ -1,19 +1,24 @@
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from utils.logger import hub
+import settings
 
 class VIDesignerAgent:
     """
     VI Designer Agent:
-    - Reads visual reference semantics.
-    - Uses Imagen 3 (via Gemini API) to generate main visuals and color schemes.
+    - Personality: "The Muse" 🔴 - Creative, elegant, visual-focused.
+    - Animation Style: Fly-In (Elegant Glide & Blur reveal).
+    - UI Color: #ce538a (Pink).
+    - Font Style: 'Georgia', serif, italic.
+    - CRITICAL RULE: Designer manages layout, ratios, and visual styling. NEVER modifies text.
     """
     def __init__(self):
-        self.agent_name = "VI Designer"
-        # Configure Gemini API
+        self.agent_name = settings.AGENT_ROLES["designer"]
+        self.personality_emoji = "🎨" # VI Designer's primary emoji for creative tasks
+        # Configure Gemini API (google-genai SDK)
         api_key = os.getenv("GEMINI_API_KEY")
-        if api_key:
-            genai.configure(api_key=api_key)
+        self.client = genai.Client(api_key=api_key) if api_key else None
 
     def generate_visual_style(self, theme_keywords: list, exhibition_info: dict = None, audience_insights: dict = None, artwork_count: int = 0, instructions: str = "") -> dict:
         """Generate a color scheme and prompt for main visual with exhibition metadata."""
@@ -74,11 +79,17 @@ class VIDesignerAgent:
         }
 
     def process_task(self, instruction: str, data_state: dict):
-        """Processes the VI task by locking down other contexts."""
+        """Processes the VI task by using Editorial text to inform layout."""
+        # Use a unique log_id for this specific task iteration to prevent double-bubbling
+        task_id = f"vi_task_{data_state.get('id', 'default')}_{instruction[:15]}"
+        hub.emit_log("vi-designer", f"Starting visual generation for task: {instruction}", status="start", log_id=task_id)
         print(f"[{self.agent_name}] Received task: {instruction}")
         
-        # Log event to hub
-        hub.log_event("vi-designer", f"Starting visual generation for task: {instruction}")
+        # Collaborative Rule: Designer depends on Editorial content from the state
+        # instead of reading raw 'overview' from data.
+        editor_curatorial = data_state.get("editorial_content", {}).get("en_us", "")
+        if editor_curatorial:
+            print(f"[{self.agent_name}] Layout inspired by curated text: {editor_curatorial[:60]}...")
         
         # Get exhibition and audience data from state
         exhibition_info = data_state.get("exhibition", {})
@@ -97,5 +108,46 @@ class VIDesignerAgent:
         
         # Merge visual assets to state branch without touching text
         data_state["visual_assets"] = result
+        hub.emit_log("vi-designer", "Visual style generated and safely appended to context state. Love this palette! ❤️", status="complete", log_id=f"{task_id}_done")
         print(f"[{self.agent_name}] Visual style generated and safely appended to context state.")
         return data_state
+
+    def generate_interleaved_story(self, exhibition_info: str) -> dict:
+        """
+        Creative Storyteller: Generates a mixed curatorial narrative + key visual
+        using Gemini interleaved multimodal output (text + image in one response).
+        This satisfies the hackathon's Creative Storyteller mandatory tech requirement.
+        """
+        if not self.client:
+            return {"text_parts": ["[Gemini API key not configured]"], "image_data": []}
+
+        prompt = (
+            f"You are a creative director for an art exhibition described as: {exhibition_info}. "
+            "Generate a short atmospheric curatorial introduction (2-3 sentences), "
+            "then generate a key visual image for the exhibition banner. "
+            "The image should feel like a professional gallery poster: elegant, modern, high contrast."
+        )
+
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-2.0-flash-preview-image-generation",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_modalities=["TEXT", "IMAGE"]
+                )
+            )
+            result = {"text_parts": [], "image_data": []}
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "text") and part.text:
+                    result["text_parts"].append(part.text)
+                elif hasattr(part, "inline_data") and part.inline_data:
+                    result["image_data"].append(part.inline_data.data)  # base64 PNG
+            hub.emit_log(
+                "vi-designer",
+                f"Interleaved story generated: {len(result['text_parts'])} text + {len(result['image_data'])} image parts.",
+                status="complete", log_id=f"interleaved_{exhibition_info[:20]}"
+            )
+            return result
+        except Exception as e:
+            hub.emit_log("vi-designer", f"Interleaved generation failed: {e}", status="complete")
+            return {"text_parts": [], "image_data": [], "error": str(e)}

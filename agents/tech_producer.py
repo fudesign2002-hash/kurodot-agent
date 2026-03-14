@@ -1,14 +1,19 @@
 import os
 from google.cloud import storage
+import settings
 
-class TechProductionAgent:
+class TechProducerAgent:
     """
     Tech Production Agent:
-    - Final technical packaging (receives multi-agent sub-asset states and generates PDF/SVG/HTML).
-    - Manages Google Cloud Storage (GCS) uploads.
+    - Personality: "The Builder" ⚫ - Systematic, soft dissolve, technical.
+    - Animation Style: Fade In (Soft dissolve & blur).
+    - UI Color: #272a3a (Dark).
+    - Font Style: 'Verdana', sans-serif.
+    - Behavior: Final technical packaging (PDF/SVG/PNG) and GCS storage.
     """
     def __init__(self):
-        self.agent_name = "Tech Production"
+        self.agent_name = settings.AGENT_ROLES["tech"]
+        self.personality_emoji = "📋" # Tech Producer's primary emoji for tasks
         self.bucket_name = os.getenv("GCS_BUCKET_NAME", "kurodot-assets")
         # Ensure GOOGLE_APPLICATION_CREDENTIALS environment variable is set
 

@@ -1,1 +1,1 @@
-web: gunicorn --bind :$PORT hello_web:app
+web: uvicorn main:app --host 0.0.0.0 --port $PORT

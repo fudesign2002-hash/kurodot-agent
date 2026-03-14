@@ -1,8 +1,9 @@
 import requests
 from fastapi import FastAPI, BackgroundTasks
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import asyncio
-from typing import Dict, Any
+from typing import Dict, Any, List
 import settings
 
 app = FastAPI()
@@ -27,6 +28,22 @@ async def get_settings():
         "test_url": settings.TEST_URL,
         "test_instruction": settings.TEST_INSTRUCTION
     }
+
+# ── Creative Storyteller: Interleaved text + image endpoint ─────────────────
+class InterleavedRequest(BaseModel):
+    exhibition_info: str
+
+@app.post("/api/interleaved-story")
+async def interleaved_story(req: InterleavedRequest):
+    """
+    Creative Storyteller endpoint: uses Gemini interleaved output (text + image)
+    to generate a curatorial narrative and key visual in a single response.
+    Returns text parts and base64 PNG image data.
+    """
+    from agents.vi_designer import VIDesignerAgent
+    designer = VIDesignerAgent()
+    result = designer.generate_interleaved_story(req.exhibition_info)
+    return JSONResponse(content=result)
 
 @app.post("/api/start_curation")
 async def start_curation(req: JobRequest, background_tasks: BackgroundTasks):
@@ -114,6 +131,34 @@ async def update_agent_task_status(job_id: str, task_id: str, status: str):
     success = hub.update_task_status(task_id, status)
     return {"success": success}
 
+
+# ── PM Dispatch Session Endpoints ───────────────────────────────────────────
+
+class PMSessionRequest(BaseModel):
+    session_id: str
+    roles: List[str]
+
+class AgentDoneRequest(BaseModel):
+    role: str
+
+@app.post("/api/pm/session")
+async def open_pm_session(req: PMSessionRequest):
+    from utils.logger import hub
+    hub.open_pm_session(req.session_id, req.roles)
+    return {"ok": True}
+
+@app.post("/api/pm/session/{session_id}/done")
+async def close_agent_task(session_id: str, req: AgentDoneRequest):
+    from utils.logger import hub
+    all_done = hub.close_agent_task(session_id, req.role)
+    return {"all_done": all_done}
+
+@app.get("/api/pm/session/{session_id}")
+async def get_pm_session(session_id: str):
+    from utils.logger import hub
+    return hub.get_pm_session(session_id)
+
+
 async def run_curation_workflow(job_id: str, url: str, exhibition_data: dict = None):
     job = jobs[job_id]
     
@@ -130,49 +175,52 @@ async def run_curation_workflow(job_id: str, url: str, exhibition_data: dict = N
     
     try:
         import json
-
         import re
-        is_square = "square" in url.lower() or "1:1" in url.lower() or "正方" in url.lower()
+        import os
+        import requests
+        
+        # 1. Shape Analysis
+        is_square = any(x in url.lower() for x in ["square", "1:1", "正方"])
         shape = "square" if is_square else "16:9"
         job["design_shape"] = shape
         
-        # Simulated extraction for kurodot and fu-design
+        # 2. Exhibition ID Extraction (Robust Regex)
         ex_id = None
-        if "fu-design.com" in url.lower():
-            # Example: https://www.fu-design.com/api/exhibit?id=123
-            fu_id_match = re.search(r"id=([a-zA-Z0-9_-]+)", url)
-            if fu_id_match:
-                ex_id = fu_id_match.group(1)
-        else:
-            # Kurodot formats: ex_ID or /exhibition/ID or id=ID
-            ex_id_match = re.search(r"ex_([a-zA-Z0-9_-]+)|exhibition/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)", url)
-            if ex_id_match:
-                ex_id = ex_id_match.group(1) or ex_id_match.group(2) or ex_id_match.group(3)
+        # Pattern covers: /exhibition/ID, ?id=ID, ex_ID, or just the ID at the end of string
+        patterns = [
+            r"exhibition/([a-zA-Z0-9_-]{10,})",
+            r"id=([a-zA-Z0-9_-]{10,})",
+            r"ex_([a-zA-Z0-9_-]{10,})",
+            r"([a-zA-Z0-9_-]{15,})$" # Catch-all for ID-only or long IDs at end
+        ]
         
-        # If still no ID found, try to treat the whole string as ID if it matches basic patterns
-        if not ex_id and len(url) > 5 and "/" not in url and "." not in url:
-            ex_id = url.strip()
-
+        for p in patterns:
+            match = re.search(p, url)
+            if match:
+                ex_id = match.group(1)
+                break
+        
         # Fallback for empty or unknown
         if not ex_id:
             ex_id = "bauhaus-blueprint-qevdv"
-        
-        # Clean up ex_id - remove common URL fragments if any
-        if ex_id and "?" in ex_id:
-            ex_id = ex_id.split("?")[0]
-        
-        log(f"PM: Analyzing curation source... Found Exhibition ID: {ex_id}")
+            log(f"PM: Could not extract specific ID from prompt. Using default: {ex_id}")
+        else:
+            log(f"PM: Analyzing curation source... Found Exhibition ID: {ex_id}")
 
+        # 3. Data Retrieval Logic (Chain: Pre-fetched -> API -> Local JSON)
         ex_data = None
         artworks = []
+        api_payload = {}
 
+        # Stage A: Check if browser already passed data
         if exhibition_data:
-            # Case 1: Browser pre-fetched the data
-            ex_data = exhibition_data.get("exhibition", exhibition_data)
-            artworks = exhibition_data.get("artworks", [])
+            api_payload = exhibition_data
+            ex_data = api_payload.get("exhibition", api_payload)
+            artworks = api_payload.get("artworks", [])
             log(f"PM: Using pre-fetched data for: {ex_data.get('title', 'Unknown')}")
-        else:
-            # Case 2: Attempt dynamic fetch with Vercel Bypass Token
+        
+        # Stage B: Attempt dynamic fetch if no pre-fetched data
+        if not ex_data:
             try:
                 is_fu = "fu-design.com" in url.lower()
                 base_api = "https://www.fu-design.com/api/exhibit" if is_fu else "https://app.kurodot.io/api/exhibit"
@@ -195,35 +243,56 @@ async def run_curation_workflow(job_id: str, url: str, exhibition_data: dict = N
                     ex_data = api_payload.get("exhibition", api_payload)
                     artworks = api_payload.get("artworks", [])
                     log(f"PM: Successfully retrieved live data for: {ex_data.get('title')}")
-                elif resp.status_code == 429:
-                    log("PM: [429] Server Rate Limited. Client-side fetch is required for this IP.")
                 else:
-                    log(f"PM: API Error {resp.status_code}.")
+                    log(f"PM: API returned {resp.status_code}. Moving to local fallback.")
             except Exception as e:
-                log(f"PM: API Exception: {str(e)}")
+                log(f"PM: API Fetch Exception: {str(e)}")
 
-        # --- Data Mapping (Centralized) ---
+        # Stage C: Local Backup (Mandatory fallback if API fails)
+        if not ex_data and ex_id:
+            local_path = f"temp/data/{ex_id}.json"
+            if os.path.exists(local_path):
+                try:
+                    log(f"PM: [Fallback] Loading local data from {local_path}...")
+                    with open(local_path, "r", encoding="utf-8") as f:
+                        api_payload = json.load(f)
+                        ex_data = api_payload.get("exhibition", api_payload)
+                        artworks = api_payload.get("artworks", [])
+                        log(f"PM: Local data loaded successfully for: {ex_data.get('title')}")
+                except Exception as e:
+                    log(f"PM: Local JSON fallback error: {str(e)}")
+            else:
+                log(f"PM: No local file found at {local_path}")
+
+        # 4. Standardized Data Mapping
         if ex_data and (ex_data.get("title") or ex_data.get("ex_title")):
-            # Support both metadata formats (kurodot vs fu-design)
-            ex_title = ex_data.get("title") or ex_data.get("ex_title") or f"Exhibition {ex_id[:5]}"
-            ex_subtitle = ex_data.get("subtitle") or ex_data.get("ex_subtitle") or ""
-            artist = ex_data.get("artist") or ex_data.get("ex_artist") or "Featured Artist"
-            venue = ex_data.get("venue") or ex_data.get("ex_venue") or "Kurodot Virtual Gallery"
+            # Extract fields with cross-compat for different API formats
+            ex_title = ex_data.get("title") or ex_data.get("ex_title", "Untitled Exhibition")
+            ex_subtitle = ex_data.get("subtitle") or ex_data.get("ex_subtitle", "")
+            artist = ex_data.get("artist") or ex_data.get("ex_artist", "Kurodot Artist")
+            venue = ex_data.get("venue") or ex_data.get("ex_venue", "Kurodot virtual gallery")
             artworks_count = len(artworks) if artworks else ex_data.get("ex_artworks_count", 0)
-            ex_description = ex_data.get("description") or ex_data.get("ex_description") or f"Experience an incredible journey featuring {artworks_count} exclusive masterpieces by {artist}."
             
-            # Find image
+            # Smart Description parsing
+            ex_description = ex_data.get("overview") or ex_data.get("description") or ex_data.get("ex_description")
+            
+            # --- UPDATED CONTENT POLICY: Trust Editor to generate concise text ---
+            # We remove the hard truncation logic to avoid cutting sentences mid-word.
+            # Instead, we just ensure it's not absolutely massive (e.g. > 1000 chars).
+            if ex_description and len(ex_description) > 1000:
+                 ex_description = ex_description[:997] + "..."
+            
+            if not ex_description:
+                 ex_description = f"Experience an incredible journey featuring {artworks_count} exclusive masterpieces by {artist}. Join us as we explore the intersection of art and technology across {venue}."
+            
+            # Select Cover Image
             ex_img_url = None
-            # Check for direct field first (fu-design format)
-            if ex_data.get("ex_img_url"):
-                ex_img_url = ex_data.get("ex_img_url")
-            
-            if not ex_img_url:
-                for key in ["posterUrl", "poster", "cover", "coverImage", "image"]:
-                    val = ex_data.get(key)
-                    if val and isinstance(val, str) and val.startswith("http") and not any(ext in val.lower() for ext in [".glb", ".gltf"]):
-                        ex_img_url = val
-                        break
+            image_keys = ["posterUrl", "poster", "cover", "coverImage", "image", "ex_img_url"]
+            for key in image_keys:
+                val = ex_data.get(key)
+                if val and isinstance(val, str) and val.startswith("http") and not any(ext in val.lower() for ext in [".glb", ".gltf", ".mp4"]):
+                    ex_img_url = val
+                    break
             
             if not ex_img_url and artworks:
                 for aw in artworks:
@@ -237,12 +306,12 @@ async def run_curation_workflow(job_id: str, url: str, exhibition_data: dict = N
             if not ex_img_url:
                 ex_img_url = "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=800"
         else:
-            # ERROR STATE: Stop workflow
-            log(f"PM: ERROR - Data Missing for ID: {ex_id}.")
+            log(f"PM: CRITICAL ERROR - No viable data found for ID: {ex_id}")
             job["status"] = "error"
-            job["logs"].append(f"❌ Error: Could not get stable data for ID: {ex_id}. (Vercel 429/403).")
+            job["logs"].append(f"❌ Error: Exhausted all data sources for ID: {ex_id}. Please check the URL.")
             return
 
+        # 5. Populate Job Object (This is what the frontend consumes via 'extra')
         job["ex_title"] = ex_title
         job["ex_subtitle"] = ex_subtitle
         job["ex_img_url"] = ex_img_url
@@ -250,32 +319,53 @@ async def run_curation_workflow(job_id: str, url: str, exhibition_data: dict = N
         job["ex_artist"] = artist
         job["ex_venue"] = venue
         job["ex_artworks_count"] = artworks_count
-        job["ex_date"] = "March 2026"  # Static for demo consistency
+        job["ex_date"] = "March 2026"
 
-        await run_agent("project-manager", 2.0, f"PM: API Data Fetched for Exhibition: {ex_id}")
-        await run_agent("analyst", 1.5, f"ANALYST: Parsed '{ex_title}' semantics.")
+        # 6. Kick off Agents in Collaborative Chain
+        await run_agent("project-manager", 1.5, f"PM: Source analysis complete for {ex_id}. Orchestrating team... 🤝")
         
-        # Simulated analyst results for display
-        job["ex_visitors"] = 8900 
+        # Collaborative Step 1: Analyst provides context
+        await run_agent("analyst", 1.0, f"ANALYST: Processing semantics for '{ex_title}'")
         
-        job["agents"]["vi-designer"] = "Executing"
-        log("DESIGNER: Scaffolding DOM blank layout...")
-        job["current_step"] = "designer_white_frame"
-        await asyncio.sleep(2)
+        # Collaborative Step 2: Editor writes the content based on PM's brief
+        # We explicitly set a shorter placeholder here to show "work in progress"
+        job["ex_description"] = "Editor is drafting a concise curatorial statement..." 
+        await run_agent("editor", 2.0, "EDITOR: Drafting a 3-4 sentence curatorial statement...")
         
-        log("DESIGNER: Integrating background visuals...")
-        job["current_step"] = "designer_add_image"
-        await asyncio.sleep(1.5)
-        job["agents"]["vi-designer"] = "Completed"
-        
-        job["agents"]["editor"] = "Executing"
-        log("EDITOR: Drafting punchy typography...")
+        # SIMULATION: In a real system, we'd call editor_agent.generate() here.
+        # For this demo flow, we now update the job description with the "refined" content
+        # that fulfills the "3-4 sentences" rule.
+        refined_description = (
+            f"This exhibition features the signature works of {artist}. "
+            f"Each piece invites the viewer into a futuristic dialogue of form and function. "
+            f"Experience this incredible journey across {venue} through exclusive masterpieces. "
+            f"Chu's visionary designs bridge the gap between imagination and contemporary art."
+        )
+        job["ex_description"] = refined_description
         job["current_step"] = "editor_add_text"
-        await asyncio.sleep(1.5)
-        job["agents"]["editor"] = "Completed"
         
-        await run_agent("tech-producer", 1, "TECH: Finalizing CSS alignments and preparing export...")
+        # Collaborative Step 3: Designer takes Editor's text and applies layout
+        await run_agent("vi-designer", 1.5, "DESIGNER: Receiving Editor's copy. Scaffolding canvas...")
+        job["current_step"] = "designer_white_frame"
         
+        await run_agent("vi-designer", 1.5, "DESIGNER: Aligning visual assets to the new narrative. Love the flow! ❤️")
+        job["current_step"] = "designer_add_image"
+        
+        await run_agent("tech-producer", 1, "TECH: Optimizing layout delivery and preparing export...")
+        
+        # Collaborative Step 4: Editor follow-up suggestion (Japanese Localization)
+        # We manually trigger this specifically for the demo flow after tech is done
+        from utils.logger import hub
+        hub.register_recommendation(
+            agent_id="editor", 
+            rec_id="editor_japanese_localization", 
+            content="Editorial Insight: 30% of visitors are from Tokyo. Recommend adding a Japanese version for better local reach?"
+        )
+        
+        # Ensure the recommendation is immediately visible in the logs for the UI to pick up
+        log("EDITOR: Generated suggestion: Editorial Insight: 30% of visitors are from Tokyo. Recommend adding a Japanese version?")
+        
+        log("PM: Workflow completed successfully! Well done team! 👏")
         job["status"] = "finished"
     except Exception as e:
         job["status"] = "error"
