@@ -52,7 +52,6 @@ jobs:
             --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
-            --allow-unauthenticated \
             --update-env-vars GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
             --quiet
 
