@@ -12,27 +12,27 @@ jobs:
   deploy:
     name: Build → Push → Deploy
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       id-token: write
 
     steps:
       # ── 1. Checkout ─────────────────────────────────────────────────────────
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # ── 2. Authenticate to GCP ───────────────────────────────────────────────
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
+        # ── 2. Install gcloud CLI ────────────────────────────────────────────────
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       # ── 3. Install gcloud CLI ────────────────────────────────────────────────
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
+        # ── 3. Authenticate to GCP via base64-encoded service account key ──────
+        - name: Authenticate to GCP
+          env:
+            GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          run: |
+            echo "$GCP_SA_KEY" | base64 --decode > "$RUNNER_TEMP/gcp-key.json"
+            gcloud auth activate-service-account --key-file="$RUNNER_TEMP/gcp-key.json"
+            gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
+            gcloud auth configure-docker --quiet
 
-      # ── 4. Set project ───────────────────────────────────────────────────────
+        # ── 4. Build container via Cloud Build ──────────────────────────────────
       - name: Configure gcloud project
         run: gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
 
@@ -40,7 +40,7 @@ jobs:
       - name: Build & push Docker image (Cloud Build)
         run: |
           gcloud builds submit \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
+        # ── 5. Deploy to Cloud Run ───────────────────────────────────────────────
             --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }} \
             --timeout=600s
 
@@ -51,7 +51,7 @@ jobs:
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }} \
             --region ${{ env.REGION }} \
-            --platform managed \
+        # ── 6. Print live URL ────────────────────────────────────────────────────
             --update-env-vars GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
             --quiet
 
