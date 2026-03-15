@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Open Canvas v1.4.9 (Client-Side Fetch)</title>
+    <title>Kurodot AI Agents</title>
     <!-- v1.4.9: PM dispatch session — all tasks route through PM → logger → celebrate -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -178,8 +178,14 @@
             font-size: 26px; 
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
             display: flex;
-            gap: 4px;
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
             user-select: none;
+        }
+        .bubble-emoji > span {
+            display: inline-block;
+            line-height: 1;
         }
 
         /* Float sub-emojis (Hearts/Thumbs) */
@@ -277,7 +283,9 @@
             flex-direction: row; /* Standard row flow: Agent Left, Hint Right */
         }
 
-        .note-hint {
+        .note-footer > .return-symbol {
+            margin-left: auto;
+        }
             font-size: 10px;
             opacity: 0.6;
             text-transform: none;
@@ -288,7 +296,8 @@
             text-align: right;
         }
 
-        .note-hint .return-symbol {
+        .note-hint .return-symbol,
+        .note-footer > .return-symbol {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -306,23 +315,56 @@
             pointer-events: auto;
         }
 
-        .note-hint .return-symbol:hover {
+        .note-hint .return-symbol:hover,
+        .note-footer > .return-symbol:hover {
             background: rgba(255, 255, 255, 0.4);
             transform: translateY(-1px);
         }
 
-        .note-hint .return-symbol:active {
+        .note-hint .return-symbol:active,
+        .note-footer > .return-symbol:active {
             background: rgba(255, 255, 255, 0.1);
             transform: translateY(0);
         }
 
-        .light-theme .note-hint .return-symbol {
+        @keyframes noteSpinner {
+            to { transform: rotate(360deg); }
+        }
+        .return-symbol.loading {
+            cursor: default !important;
+            pointer-events: none;
+            background: rgba(255,255,255,0.08) !important;
+            border-color: rgba(255,255,255,0.2) !important;
+            font-size: 0 !important;
+        }
+        .return-symbol.loading::after {
+            content: '';
+            display: block;
+            width: 10px;
+            height: 10px;
+            border: 2px solid rgba(255,255,255,0.25);
+            border-top-color: rgba(255,255,255,0.85);
+            border-radius: 50%;
+            animation: noteSpinner 0.6s linear infinite;
+        }
+        .light-theme .return-symbol.loading {
+            background: rgba(0,0,0,0.04) !important;
+            border-color: rgba(0,0,0,0.15) !important;
+        }
+        .light-theme .return-symbol.loading::after {
+            border-color: rgba(0,0,0,0.15);
+            border-top-color: rgba(0,0,0,0.6);
+        }
+
+        .light-theme .note-hint .return-symbol,
+        .light-theme .note-footer > .return-symbol {
             background: rgba(0, 0, 0, 0.05);
             border: 1px solid rgba(0, 0, 0, 0.2);
             color: rgba(0, 0, 0, 0.6);
         }
 
-        .light-theme .note-hint .return-symbol:hover {
+        .light-theme .note-hint .return-symbol:hover,
+        .light-theme .note-footer > .return-symbol:hover {
             background: rgba(0, 0, 0, 0.1);
         }
 
@@ -459,13 +501,13 @@
         /* Agent Console Message Log */
         .agent-console {
             position: fixed;
-            top: 40px; /* 改為從畫面上方開始 */
+            top: 40px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            z-index: 21000; /* 高於所有 UI */
+            align-items: center;
+            z-index: 21000;
             pointer-events: none;
         }
 
@@ -507,17 +549,6 @@
         /* Each agent's log text should have a unique animation style */
         .agent-log {
             display: inline-block;
-        }
-
-        /* PM: Bouncy (Keynote-style energetic bounce) */
-        .pm-text-anim {
-            display: inline-block;
-            animation: pm-bouncy 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
-            font-weight: 800;
-        }
-        @keyframes pm-bouncy {
-            0% { transform: scale(0.9) translateY(0); }
-            100% { transform: scale(1.1) translateY(-12px); color: #f1a456; }
         }
 
         /* VI Designer: Fly In (Keynote-style smooth drift and scale) */
@@ -589,14 +620,40 @@
         }
 
         /* --- Agent Personality Log Animations --- */
-        /* 1. PM: 🟠 The Hype - Gentle Floating (Calmed down) */
-        @keyframes pm-float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-3px); }
+        /* 1. PM: 🟠 Cheerleader — per-character color shimmer, no vertical shift */
+        @keyframes pm-char-pop {
+            0%   { color: inherit;  font-weight: 700; }
+            30%  { color: #f1a456; font-weight: 900; }
+            60%  { color: #ff6b6b; font-weight: 900; }
+            100% { color: inherit;  font-weight: 700; }
+        }
+        .pm-char {
+            display: inline-block;
+            animation: pm-char-pop 0.5s ease-in-out both;
+        }
+        .pm-text-anim {
+            display: inline-block;
+        }
+        @keyframes pm-name-flash {
+            0%,100% { background: #f1a456; transform: scale(1); }
+            33%     { background: #ff6b6b; transform: scale(1.08) rotate(-2deg); }
+            66%     { background: #ffcc00; transform: scale(1.12) rotate(2deg); }
+        }
+        .pm-name-badge {
+            display: inline-block;
+            animation: pm-name-flash 0.9s ease-in-out infinite;
+            color: #fff !important;
+            background: #f1a456;
+            padding: 1px 7px;
+            border-radius: 8px;
+            font-weight: 900;
+            font-size: 10px;
+            letter-spacing: 1px;
+            margin-right: 8px;
+            vertical-align: middle;
         }
         .pm-text-anim { 
             display: inline-block;
-            animation: pm-float 2s ease-in-out infinite; 
         }
 
         /* 2. Designer: 🔴 The Muse - Elegant Glide & Blur reveal */
@@ -739,7 +796,7 @@
     <div id="agent-console" class="agent-console"></div>
 
     <script>
-        let zIndexCounter = 100;
+        let zIndexCounter = 9000;
         const canvasBoard = document.getElementById('canvas-board');
         const agentStatusButtons = document.querySelectorAll('.agent-status');
 
@@ -785,7 +842,44 @@
             return { x, y };
         }
 
-        function createNewNote(x, y, bgColor, roleName, initialText, forceLightText = false) {
+        // Returns a random position around the perimeter of the banner artboard.
+        // Falls back to viewport edges if artboard isn't rendered yet.
+        function getPerimeterPosition() {
+            const noteW = 280, noteH = 160, gap = 20;
+            const artboard = document.getElementById('banner-artboard');
+            let rect = artboard ? artboard.getBoundingClientRect() : {
+                left: window.innerWidth * 0.2, top: window.innerHeight * 0.2,
+                right: window.innerWidth * 0.8, bottom: window.innerHeight * 0.8,
+                width: window.innerWidth * 0.6, height: window.innerHeight * 0.6
+            };
+            // 3 zones: top, right, left — avoid bottom so notes don't get cut off
+            const zone = Math.floor(Math.random() * 3);
+            let x, y;
+            if (zone === 0) { // top strip
+                x = rect.left + Math.random() * Math.max(rect.width - noteW, 0);
+                y = rect.top - noteH - gap - Math.random() * 40;
+            } else if (zone === 1) { // right strip
+                x = rect.right + gap + Math.random() * 40;
+                y = rect.top + Math.random() * Math.max(rect.height - noteH, 0);
+            } else { // left strip
+                x = rect.left - noteW - gap - Math.random() * 40;
+                y = rect.top + Math.random() * Math.max(rect.height - noteH, 0);
+            }
+            // Clamp to viewport
+            const vpad = 10;
+            x = Math.max(vpad, Math.min(x, window.innerWidth  - noteW - vpad));
+            y = Math.max(vpad, Math.min(y, window.innerHeight - noteH - vpad));
+            return { x, y };
+        }
+
+        function createNewNote(x, y, bgColor, roleName, initialText, forceLightText = false, fromUser = false, originButton = null) {
+            // Ignore the raw click coords — always place around the banner perimeter
+            // UNLESS the note was explicitly created by a user action (double-click)
+            if (!fromUser) {
+                const perimPos = getPerimeterPosition();
+                x = perimPos.x;
+                y = perimPos.y;
+            }
             // Normalize roleName: switch Unassigned (Chief Curator) to just Chief Curator
             if (roleName === 'Unassigned (Chief Curator)') {
                 roleName = 'Chief Curator';
@@ -828,20 +922,107 @@
                 ? `<div class="note-content" contenteditable="true">${initialText}</div>`
                 : `<div class="note-content" contenteditable="true" data-placeholder="${placeholderText}"></div>`;
 
+            // Image preview area (hidden by default, shown when user pastes an image)
+            const imagePreviewHTML = `<div class="note-image-preview" style="display:none; margin: 6px 0; position: relative;">
+                <img class="note-preview-img" style="width:100%; border-radius:4px; display:block; max-height:120px; object-fit:cover;" />
+                <button class="note-img-clear" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;line-height:1;">✕</button>
+                <div style="font-size:9px;opacity:0.6;margin-top:3px;text-align:center;">🎨 Style reference attached</div>
+            </div>`;
+
             newNote.innerHTML = `
                 <div class="note-header" style="cursor: move;">
                     <span class="delete-btn">✕</span>
                 </div>
                 ${finalShortcuts}
+                ${imagePreviewHTML}
                 ${contentHTML}
                 <div class="note-footer">
                     <span>${roleName}</span>
-                    <span class="note-hint">Submit with <span class="return-symbol">↵</span></span>
+                    <span class="note-hint">Submit with </span><span class="return-symbol">↵</span>
                 </div>
             `;
             
             canvasBoard.appendChild(newNote);
             makeDraggable(newNote);
+
+            // ── Fly-out from agent button animation ─────────────────────────
+            if (originButton) {
+                newNote.dataset.originRole = roleName;
+                newNote.classList.remove('animate-in');
+                // Measure after paint so getBoundingClientRect is accurate
+                requestAnimationFrame(() => {
+                    const btnRect = originButton.getBoundingClientRect();
+                    const noteRect = newNote.getBoundingClientRect();
+                    const dx = (btnRect.left + btnRect.width  / 2) - (noteRect.left + noteRect.width  / 2);
+                    const dy = (btnRect.top  + btnRect.height / 2) - (noteRect.top  + noteRect.height / 2);
+                    // Snap to origin, invisible
+                    newNote.style.transition = 'none';
+                    newNote.style.opacity = '0';
+                    newNote.style.transform = `translate(${dx}px, ${dy}px) scale(0.08)`;
+                    // Next frame: animate to final position
+                    requestAnimationFrame(() => {
+                        newNote.style.transition = 'transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease';
+                        newNote.style.transform = 'translate(0, 0) scale(1)';
+                        newNote.style.opacity = '1';
+                    });
+                });
+            }
+
+            // ── Image paste support ──────────────────────────────────────────
+            const imagePreviewEl = newNote.querySelector('.note-image-preview');
+            const previewImg = newNote.querySelector('.note-preview-img');
+            const imgClearBtn = newNote.querySelector('.note-img-clear');
+
+            function attachImageToNote(file) {
+                if (!file || !file.type.startsWith('image/')) return;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    previewImg.src = dataUrl;
+                    imagePreviewEl.style.display = 'block';
+                    // Store base64 (strip prefix) and mime type on the note for submission
+                    newNote.dataset.imageBase64 = dataUrl.split(',')[1];
+                    newNote.dataset.imageMime = file.type;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            newNote.addEventListener('paste', function(e) {
+                const items = e.clipboardData && e.clipboardData.items;
+                if (!items) return;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.startsWith('image/')) {
+                        e.preventDefault();
+                        attachImageToNote(items[i].getAsFile());
+                        return;
+                    }
+                }
+                // Plain-text paste: strip any inline colour/font styling from the source
+                const text = e.clipboardData.getData('text/plain');
+                if (text) {
+                    e.preventDefault();
+                    document.execCommand('insertText', false, text);
+                }
+            });
+
+            newNote.addEventListener('dragover', e => { e.preventDefault(); newNote.style.outline = '2px dashed rgba(255,255,255,0.5)'; });
+            newNote.addEventListener('dragleave', () => { newNote.style.outline = ''; });
+            newNote.addEventListener('drop', function(e) {
+                e.preventDefault();
+                newNote.style.outline = '';
+                const file = e.dataTransfer.files && e.dataTransfer.files[0];
+                if (file) attachImageToNote(file);
+            });
+
+            if (imgClearBtn) {
+                imgClearBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    imagePreviewEl.style.display = 'none';
+                    previewImg.src = '';
+                    delete newNote.dataset.imageBase64;
+                    delete newNote.dataset.imageMime;
+                });
+            }
 
             const contentDiv = newNote.querySelector('.note-content');
             const submitBtn = newNote.querySelector('.return-symbol');
@@ -884,6 +1065,9 @@
                     const text = contentDiv.innerText.trim();
                     if (!text) return;
 
+                    // Switch submit button to loading spinner
+                    submitBtn.classList.add('loading');
+
                     // 1. Visual updates
                     const footer = newNote.querySelector('.note-footer');
                     const hint = newNote.querySelector('.note-hint');
@@ -894,15 +1078,23 @@
                     console.log(`%c[USER]%c Button clicked for ${roleName}. Text: "${text}"`, "color: #2196F3; font-weight:bold;", "color:#333");
                     
                     if (roleName === 'Chief Curator') {
-                        if (text.length > 3 && !contentDiv.dataset.pmTriggered) {
+                        if ((text.length > 3 || newNote.dataset.imageBase64) && !contentDiv.dataset.pmTriggered) {
                             contentDiv.dataset.pmTriggered = "true";
-                            processTask(text, newNote);
+                            if (newNote.dataset.imageBase64) {
+                                processTaskWithImage(text || 'Apply this style', newNote);
+                            } else {
+                                processTask(text, newNote);
+                            }
                         }
                     } else {
                         if (!contentDiv.dataset.revisionTriggered || contentDiv.dataset.lastText !== text) {
                             contentDiv.dataset.revisionTriggered = "true";
                             contentDiv.dataset.lastText = text;
-                            triggerRevision(roleName, text, newNote);
+                            if (newNote.dataset.imageBase64) {
+                                processTaskWithImage(text || 'Apply this style', newNote);
+                            } else {
+                                triggerRevision(roleName, text, newNote);
+                            }
                         }
                     }
 
@@ -923,6 +1115,10 @@
                     const hint = newNote.querySelector('.note-hint');
                     if (hint) hint.style.opacity = '0';
                     if (footer) footer.style.justifyContent = 'flex-start';
+
+                    // Switch to loading spinner
+                    const sb = newNote.querySelector('.return-symbol');
+                    if (sb) sb.classList.add('loading');
                     
                     this.blur();
                     
@@ -940,24 +1136,36 @@
                 const text = this.innerText.trim();
                 console.log(`%c[DEBUG]%c Blur triggered for ${roleName}. Text: "${text}"`, "color: #9e9e9e", "color: #333");
                 
-                if (!text) {
+                if (!text && !newNote.dataset.imageBase64) {
                     newNote.remove();
                     return;
                 }
 
+                // Show loading spinner on the submit button when a task is about to fire
+                const _sb = newNote.querySelector('.return-symbol');
+                if (_sb) _sb.classList.add('loading');
+
                 if (roleName === 'Chief Curator') {
-                    if (text.length > 3 && !this.dataset.pmTriggered) {
+                    if ((text.length > 3 || newNote.dataset.imageBase64) && !this.dataset.pmTriggered) {
                         this.dataset.pmTriggered = "true";
-                        processTask(text, newNote);
+                        // If image is attached, auto-route to Designer for style analysis
+                        if (newNote.dataset.imageBase64) {
+                            processTaskWithImage(text || 'Apply this style', newNote);
+                        } else {
+                            processTask(text, newNote);
+                        }
                     }
                 } else {
-                    // This area handles BI Designer specifically
                     console.log(`%c[DEBUG]%c Revision check for ${roleName}. Already triggered: ${this.dataset.revisionTriggered}`);
                     if (!this.dataset.revisionTriggered || this.dataset.lastText !== text) {
                         this.dataset.revisionTriggered = "true";
                         this.dataset.lastText = text;
                         console.log(`%c[DEBUG]%c Calling triggerRevision for ${roleName}`);
-                        triggerRevision(roleName, text, newNote);
+                        if (newNote.dataset.imageBase64) {
+                            processTaskWithImage(text || 'Apply this style', newNote);
+                        } else {
+                            triggerRevision(roleName, text, newNote);
+                        }
                     }
                 }
             });
@@ -967,12 +1175,52 @@
             });
         }
 
+        // ── Image Style Analysis: Chief Curator with image pasted ────────────
+        async function processTaskWithImage(instructions, noteElement) {
+            const imageBase64 = noteElement.dataset.imageBase64;
+            const imageMime   = noteElement.dataset.imageMime || 'image/png';
+
+            const pmDot = document.querySelector('.color-pm');
+            const viDot = document.querySelector('.color-vi');
+            if (pmDot) pmDot.classList.replace('state-idle', 'state-executing');
+            
+            showAgentConsoleMessage('color-pm', `PM: Image detected! Routing to VI Designer for style analysis...`, 3000, 20);
+
+            try {
+                const res = await fetch('/api/analyze-style', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image_base64: imageBase64, mime_type: imageMime })
+                });
+                const style = await res.json();
+
+                if (style.error) {
+                    console.warn('[Style Analysis] API error:', style.error);
+                    showAgentConsoleMessage('color-vi', `VI Designer: Style analysis failed. ${style.error}`, 3000, 20);
+                    if (pmDot) pmDot.classList.replace('state-executing', 'state-completed');
+                    return;
+                }
+
+                console.log('%c[VI Designer]%c Style analysis result:', 'color:#388E3C;font-weight:bold;', 'color:#555', style);
+                showAgentConsoleMessage('color-pm', `PM: Style analyzed — "${style.mood}" mood, ${style.color_scheme} palette. Dispatching to VI Designer...`, 3000, 20);
+                if (pmDot) pmDot.classList.replace('state-executing', 'state-completed');
+
+                // Pass the style object to the Designer via triggerRevision with extra payload
+                triggerRevision('VI Designer', instructions, noteElement, { analyzedStyle: style });
+
+            } catch(e) {
+                console.error('[Style Analysis] Fetch failed:', e);
+                showAgentConsoleMessage('color-vi', `VI Designer: Could not connect to style analysis service.`, 3000, 20);
+                if (pmDot) pmDot.classList.replace('state-executing', 'state-completed');
+            }
+        }
+
         canvasBoard.addEventListener('dblclick', function(e) {
             if (e.target.id === 'canvas-board') {
                 const targetX = e.clientX - 130;
                 const targetY = e.clientY - 60;
                 const pos = getSafePosition(targetX, targetY);
-                createNewNote(pos.x, pos.y, '#fefefe', 'Chief Curator', '', true);
+                createNewNote(pos.x, pos.y, '#fefefe', 'Chief Curator', '', true, true);
             }
         });
 
@@ -1006,7 +1254,7 @@
                     }
                 }
                 const pos = getSafePosition(targetX, targetY);
-                createNewNote(pos.x, pos.y, bgColor, roleName, '');
+                createNewNote(pos.x, pos.y, bgColor, roleName, '', false, false, button);
             });
         });
 
@@ -1014,15 +1262,15 @@
             if (!text || text.trim() === "" || text.trim() === ":") return; // 防呆：不顯示空白或只有冒號的訊息
 
             const consoleArea = document.getElementById('agent-console');
-            const allMsgs = consoleArea.querySelectorAll('.console-message');
-            if (allMsgs.length >= 4) {
-                allMsgs[0].classList.replace('show', 'hide');
-                setTimeout(() => { if (allMsgs[0] && allMsgs[0].parentNode) allMsgs[0].remove(); }, 400);
-            }
+            // Remove ALL existing messages so only one is ever shown at a time
+            consoleArea.querySelectorAll('.console-message').forEach(m => {
+                m.classList.replace('show', 'hide');
+                setTimeout(() => { if (m.parentNode) m.remove(); }, 300);
+            });
             
             // 提取 Agent 名稱並格式化
             let agentDisplayName = "";
-            let remainingText = text.replace(/⚠️|✅|🔗|🎨|✍️|💡|💎|⚙️|😱|✨/g, '').trim();
+            let remainingText = text.replace(/⚠️|✅|🔗|🎨|✏️|💡|💎|⚙️|😱|✨/g, '').trim();
             
             // Remove any other common emojis manually to be safe
             remainingText = remainingText.replace(/[\u{1F300}-\u{1F9FF}]/gu, '');
@@ -1077,7 +1325,7 @@
                         success: ['👏', '🙌', '👍', '✅'],
                         process: ['👌', '⚡️', '⏳', '💪'],
                         connect: ['🤝', '🔗', '🌐', '📡'],
-                        content: ['📝', '✍️', '📖', '📌'],
+                        content: ['📝', '✏️', '📖', '📌'],
                         insight: ['💡', '🔎', '💎', '🚀'],
                         alert:   ['✋', '⚠️', '🛑', '❗'],
                         greet:   ['👋', '🤝', '🖖', '😊']
@@ -1104,7 +1352,7 @@
                     if (fullText.includes("applied") || fullText.includes("completed") || fullText.includes("downloaded") || fullText.includes("approved")) emoji = '🙌';
                     else if (fullText.includes("processing") || fullText.includes("connecting") || fullText.includes("executing") || fullText.includes("drafting")) emoji = '⚡️';
                     else if (fullText.includes("designer") || fullText.includes("layout") || fullText.includes("scaffolding") || fullText.includes("visuals")) emoji = '🎨';
-                    else if (fullText.includes("editor") || fullText.includes("text") || fullText.includes("typography")) emoji = '✍️';
+                    else if (fullText.includes("editor") || fullText.includes("text") || fullText.includes("typography")) emoji = '✏️';
                     else if (fullText.includes("api") || fullText.includes("parsed") || fullText.includes("insight")) emoji = '💡';
                     else if (fullText.includes("recommendation")) emoji = '💎';
                     else if (fullText.includes("producer") || fullText.includes("export") || fullText.includes("css")) emoji = '⚙️';
@@ -1135,7 +1383,7 @@
             switch (agentDisplayName) {
                 case 'PM': 
                     personalityClass = "pm-text-anim"; 
-                    roleSpeed = 25; // Speed up but still slower than before
+                    roleSpeed = 15; // Fast & energetic like a cheerleader
                     break;
                 case 'DESIGNER': 
                     personalityClass = "designer-text-anim"; 
@@ -1156,9 +1404,11 @@
             }
 
             msgBox.innerHTML = `
-                <div class="console-text" style="display:inline-block; max-width:85%;">
-                    ${agentDisplayName ? `<span class="console-agent-name" style="color: ${agentColor}; margin-right: 8px;">${agentDisplayName}</span>` : ''}
-                    <span class="${personalityClass} typing-area"></span>
+                <div class="console-text" style="display:inline-flex; align-items:center; line-height:1.6; overflow:visible; max-width:85%;">
+                    ${agentDisplayName === 'PM'
+                        ? `<span class="pm-name-badge">PM ✦</span>`
+                        : (agentDisplayName ? `<span class="console-agent-name" style="color: ${agentColor}; margin-right: 8px;">${agentDisplayName}</span>` : '')}
+                    <span class="${personalityClass} typing-area" data-agent="${agentDisplayName}"></span>
                 </div>
             `;
             consoleArea.appendChild(msgBox);
@@ -1176,11 +1426,21 @@
             }
             
             const typingArea = msgBox.querySelector('.typing-area');
+            const isPMMsg = false; // PM text has no character effects
             let i = 0;
             function typeWriter() {
                 if (i < remainingText.length) {
                     const char = remainingText.charAt(i);
-                    typingArea.innerHTML += char === ' ' ? '\u00A0' : char;
+                    const displayChar = char === ' ' ? '\u00A0' : char;
+                    if (isPMMsg && char !== ' ') {
+                        const span = document.createElement('span');
+                        span.className = 'pm-char';
+                        span.style.animationDelay = (i * 0.03) + 's';
+                        span.textContent = displayChar;
+                        typingArea.appendChild(span);
+                    } else {
+                        typingArea.innerHTML += displayChar;
+                    }
                     i++;
                     setTimeout(typeWriter, roleSpeed);
                 } else {
@@ -1267,8 +1527,31 @@
 
             // Check for Tech specific commands (Export / Clipboard)
             const isTechCommand = !containsExhibitionUrl && (lowerText.includes('export') || lowerText.includes('jpg') || lowerText.includes('png') || lowerText.includes('clipboard') || lowerText.includes('copy'));
-            const isDesignerCommand = !containsExhibitionUrl && (lowerText.includes('4:5') || lowerText.includes('dark') || lowerText.includes('style') || lowerText.includes('layout'));
-            const isEditorCommand = !containsExhibitionUrl && (lowerText.includes('shorten') || lowerText.includes('content') || lowerText.includes('translate'));
+            const isDesignerCommand = !containsExhibitionUrl && !isTechCommand && (
+                lowerText.includes('4:5') || lowerText.includes('16:9') || lowerText.includes('16:10') || lowerText.includes('4:3') || lowerText.includes('9:16') ||
+                lowerText.includes('dark') || lowerText.includes('style') || lowerText.includes('layout') ||
+                lowerText.includes('size') || lowerText.includes('background') || lowerText.includes('design') ||
+                lowerText.includes('full bg') || lowerText.includes('image') || lowerText.includes('visual') ||
+                lowerText.includes('color') || lowerText.includes('colour') || lowerText.includes('theme') ||
+                lowerText.includes('portrait') || lowerText.includes('landscape') || lowerText.includes('ratio')
+            );
+            const isEditorCommand = !containsExhibitionUrl && !isTechCommand && !isDesignerCommand && (
+                lowerText.includes('shorten') || lowerText.includes('content') ||
+                lowerText.includes('translate') || lowerText.includes('translation') ||
+                lowerText.includes('japanese') || lowerText.includes('日文') || lowerText.includes('日語') ||
+                lowerText.includes('chinese') || lowerText.includes('中文') || lowerText.includes('繁體') || lowerText.includes('simplified') ||
+                lowerText.includes('english') || lowerText.includes('英文') ||
+                lowerText.includes('version') && (lowerText.includes('japan') || lowerText.includes('chinese') || lowerText.includes('local')) ||
+                lowerText.includes('locali') || lowerText.includes('language') || lowerText.includes('語言')
+            );
+            const isAnalystCommand = !containsExhibitionUrl && !isTechCommand && !isDesignerCommand && !isEditorCommand && (
+                lowerText.includes('popular') || lowerText.includes('trending') ||
+                lowerText.includes('painting') || lowerText.includes('artwork') || lowerText.includes('畫作') ||
+                lowerText.includes('最受歡迎') || lowerText.includes('熱門') || lowerText.includes('人氣') ||
+                lowerText.includes('most viewed') || lowerText.includes('statistic') || lowerText.includes('analyt') ||
+                lowerText.includes('view count') || lowerText.includes('like') ||
+                lowerText.includes('人氣作品') || lowerText.includes('banner image')
+            );
 
             // --- Hand over scheduling to Logger Agent (Hub) ---
             const sessionId = 'sess_' + Date.now();
@@ -1316,6 +1599,50 @@
                 showAgentConsoleMessage('color-pm', `PM: Reviewing task — dispatching to Editorial...`, 2000, 20);
                 await openPMSession(sessionId, ['editor']);
                 triggerRevision('Editorial', rawText, noteElement, { sessionId });
+                return;
+            } else if (isAnalystCommand) {
+                showAgentConsoleMessage('color-pm', `PM: Reviewing task — dispatching to Data Analyst...`, 2000, 20, '📊');
+                await openPMSession(sessionId, ['analyst']);
+                triggerRevision('Data Analyst', rawText, noteElement, { sessionId });
+                return;
+            } else if (!containsExhibitionUrl) {
+                // ── Gemini NLU fallback: no keyword matched — ask Gemini to classify ──
+                showAgentConsoleMessage('color-pm', `PM: Thinking deeply about your instruction...`, 3500, 20, '🤔');
+                try {
+                    const classifyRes = await fetch('/api/classify-task', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: rawText })
+                    });
+                    const classifyData = await classifyRes.json();
+                    const agent = classifyData.agent || '';
+                    const pct = Math.round((classifyData.confidence || 0) * 100);
+                    if (agent === 'designer') {
+                        showAgentConsoleMessage('color-pm', `PM: AI routed → VI Designer (${pct}% confident)`, 2500, 20);
+                        await openPMSession(sessionId, ['vi']);
+                        triggerRevision('VI Designer', rawText, noteElement, { sessionId });
+                        return;
+                    } else if (agent === 'editor') {
+                        showAgentConsoleMessage('color-pm', `PM: AI routed → Editorial (${pct}% confident)`, 2500, 20);
+                        await openPMSession(sessionId, ['editor']);
+                        triggerRevision('Editorial', rawText, noteElement, { sessionId });
+                        return;
+                    } else if (agent === 'tech') {
+                        showAgentConsoleMessage('color-pm', `PM: AI routed → Tech Producer (${pct}% confident)`, 2500, 20);
+                        await openPMSession(sessionId, ['tech']);
+                        triggerRevision('Tech Producer', rawText, noteElement, { sessionId });
+                        return;
+                    } else if (agent === 'analyst') {
+                        showAgentConsoleMessage('color-pm', `PM: AI routed → Data Analyst (${pct}% confident)`, 2500, 20);
+                        await openPMSession(sessionId, ['analyst']);
+                        triggerRevision('Data Analyst', rawText, noteElement, { sessionId });
+                        return;
+                    }
+                } catch(e) {
+                    console.warn('[PM] Gemini classify-task failed:', e);
+                }
+                showAgentConsoleMessage('color-pm', `PM: I'm not sure how to handle this. Please try rephrasing.`, 4000, 20, '❓');
+                markNoteCompleted(noteElement);
                 return;
             }
 
@@ -1525,7 +1852,7 @@
                                             else busyEmoji = '✌️'; 
                                             break;
                                         case 'vi': busyEmoji = '🎨'; break;
-                                        case 'editor': busyEmoji = '✍️'; break;
+                                        case 'editor': busyEmoji = '✏️'; break;
                                         case 'analyst': 
                                             busyEmoji = (lowerLog.includes("!") || lowerLog.includes("identif")) ? '💡' : '📡'; 
                                             break;
@@ -1661,9 +1988,9 @@
 
                 const bubble = document.createElement('div');
                 bubble.className = 'notification-bubble';
-                // 支援多個 Emoji
+                // 支援多個 Emoji — 每個獨立 <span> 讓 flex row 正確橫排
                 const emojis = Array.isArray(emoji) ? emoji : [emoji];
-                bubble.innerHTML = `<span class="bubble-emoji">${emojis.join('')}</span>`;
+                bubble.innerHTML = `<span class="bubble-emoji">${emojis.map(e => `<span>${e}</span>`).join('')}</span>`;
                 container.appendChild(bubble);
 
                 // 增加點擊時的愛心/讚特效
@@ -1761,17 +2088,7 @@
 
             function createStickyFromRecommendation(selectedInsightObj) {
                     const canvasBoard = document.body; // Create note on the main body
-                    let targetX = window.innerWidth / 2;
-                    let targetY = window.innerHeight / 2;
-                    
-                    const canvas = document.getElementById('banner-artboard');
-                    if (canvas) {
-                        const rect = canvas.getBoundingClientRect();
-                        targetX = rect.left + 50; // Place on the left side of banner
-                        targetY = rect.top + 50;
-                    }
-                    
-                    const pos = getSafePosition(targetX, targetY);
+                    const pos = getPerimeterPosition();
 
                     // --- MATCH UI COLOR TO THE ORIGINATING AGENT (UPDATED PER README) ---
                     const targetRole = selectedInsightObj.role || 'analyst';
@@ -2187,6 +2504,11 @@
         }
         function markNoteCompleted(noteElement) {
             if (noteElement === null || noteElement === undefined) return;
+            // Hide loading spinner in footer
+            const spinnerBtn = noteElement.querySelector('.return-symbol.loading');
+            if (spinnerBtn) spinnerBtn.classList.remove('loading');
+            const noteFooter = noteElement.querySelector('.note-footer');
+            if (noteFooter) noteFooter.style.display = 'none';
             const contentDiv = noteElement.querySelector('.note-content');
             if (contentDiv) {
                 contentDiv.style.overflow = 'hidden';
@@ -2206,10 +2528,34 @@
                 contentDiv.setAttribute('contenteditable', 'false');
             }
             
-            // Just transition opacity not rotating
-            noteElement.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
             noteElement.style.pointerEvents = 'none'; // Prevent further interaction
-            
+
+            // If note was spawned from an agent button, fly it back there
+            const originRole = noteElement.dataset.originRole;
+            if (originRole) {
+                const agentBtn = document.querySelector(`.agent-status[data-role="${originRole}"]`);
+                if (agentBtn) {
+                    setTimeout(() => {
+                        const btnRect = agentBtn.getBoundingClientRect();
+                        const noteRect = noteElement.getBoundingClientRect();
+                        const dx = (btnRect.left + btnRect.width  / 2) - (noteRect.left + noteRect.width  / 2);
+                        const dy = (btnRect.top  + btnRect.height / 2) - (noteRect.top  + noteRect.height / 2);
+                        noteElement.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease';
+                        noteElement.style.transform = `translate(${dx}px, ${dy}px) scale(0.06)`;
+                        noteElement.style.opacity = '0';
+                        setTimeout(() => {
+                            if (noteElement.parentNode) {
+                                noteElement.remove();
+                                console.log("%c[SYSTEM]%c Note flew back to agent.", "color: #666; font-weight:bold;", "color:#999");
+                            }
+                        }, 520);
+                    }, 700); // show checkmark first, then fly back
+                    return;
+                }
+            }
+
+            // Default: fade out in place
+            noteElement.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
             setTimeout(() => {
                 noteElement.style.opacity = '0';
                 noteElement.style.transform = 'scale(0.9) translateY(10px)';
@@ -2221,6 +2567,38 @@
                 }, 650);
             }, 600);
         }
+        // --- Misroute keyword sets (shared across all guards) ---
+        const _EDITOR_KW   = ['translate','translation','japanese','日文','日語','chinese','中文','繁體','簡體','english','英文','shorten','language','locali','語言','文字'];
+        const _DESIGNER_KW = ['size','ratio','4:5','9:16','16:9','16:10','4:3','1:1','square','layout','design','color','colour','background','dark mode','style','visual','portrait','landscape','theme','full bg','poster','template','text size','font size','make text','smaller text','bigger text','larger text','字體','字型','縮小字','放大字'];
+        const _TECH_KW     = ['export','jpg','jpeg','png','pdf','clipboard','screenshot','download','下載'];
+        const _ANALYST_KW  = ['popular','trending','painting','artwork','畫作','最受歡迎','熱門','人氣','most viewed','statistic','analytics','view count','like','likes','人氣作品','banner image'];
+
+        // Called when an agent receives a task that clearly isn't theirs
+        function agentConfused(agentDisplayName, roleShort, instructions, noteElement, extra) {
+            const dot = document.querySelector(`.color-${roleShort}`);
+            if (dot) {
+                dot.classList.replace('state-executing', 'state-idle');
+                dot.classList.replace('state-completed', 'state-idle');
+            }
+            const confusedLines = [
+                `Hmm, this doesn't look like my task. Passing back to PM for reassignment...`,
+                `Wait — I think this belongs to someone else. Let me ask PM to re-route this.`,
+                `This is outside my domain. I'm confused. Sending to PM to reassign.`
+            ];
+            const msg = confusedLines[Math.floor(Math.random() * confusedLines.length)];
+            // ❓ emoji goes to the bubble, not the text
+            showAgentConsoleMessage(`color-${roleShort}`, `${agentDisplayName}: ${msg}`, 4000, 20, '❓');
+            setTimeout(() => {
+                const pmDot = document.querySelector('.color-pm');
+                if (pmDot) {
+                    pmDot.classList.replace('state-idle', 'state-executing');
+                    pmDot.classList.replace('state-completed', 'state-executing');
+                }
+                showAgentConsoleMessage('color-pm', `PM: Received re-route from ${agentDisplayName} — reassigning task now...`, 2500, 20, '❓');
+                setTimeout(() => processTask(instructions, noteElement), 1400);
+            }, 2200);
+        }
+
         // --- Simulated Agent Triggers from Stickies --- //
         function triggerRevision(role, instructions, noteElement, extra = {}) {
             // Log entry for debugging if noteElement is passed
@@ -2258,6 +2636,18 @@
                 const isEnglish = instructions.toLowerCase().includes('英文') || instructions.toLowerCase().includes('english');
                 const isMoreText = instructions.toLowerCase().includes('more') || instructions.includes('多') || instructions.includes('加');
 
+                // ── Misroute guard: reject if no editorial keywords AND clearly belongs elsewhere ──
+                if (!(extra && (extra.title || extra.ex_title || extra.overview))) {
+                    const _il = instructions.toLowerCase();
+                    const _hasOwn = _EDITOR_KW.some(k => _il.includes(k)) || isJapanese || isChinese || isEnglish || isMoreText;
+                    const _hasDes = _DESIGNER_KW.some(k => _il.includes(k));
+                    const _hasTech = _TECH_KW.some(k => _il.includes(k));
+                    if (!_hasOwn && (_hasDes || _hasTech)) {
+                        agentConfused('✏️ Editorial', 'editor', instructions, noteElement, extra);
+                        return;
+                    }
+                }
+
                 showAgentConsoleMessage(`color-${roleShort}`, `Editorial is updating context for: "${instructions}"...`, 3000, 20);
                 setTimeout(() => {
                     const headline = document.getElementById('banner-headline');
@@ -2277,8 +2667,8 @@
                             const currentH = headline.innerText.toLowerCase();
                             
                             // --- IF DATA IS PROVIDED VIA EXTRA OBJECT ---
-                            // 修正：如果已經是日文狀態 (isJapanese)，不要用 extra 裡面的英文原始資料覆蓋它
-                            if (!isJapanese && extra && (extra.title || extra.ex_title) && !isMoreText) {
+                            // 修正：如果是翻譯指令 (isJapanese/isChinese/isEnglish)，優先走翻譯 API，不要被 extra payload 攔截
+                            if (!isJapanese && !isChinese && !isEnglish && extra && (extra.title || extra.ex_title) && !isMoreText) {
                                 const realTitle = extra.title || extra.ex_title || "";
                                 headline.innerText = realTitle.toUpperCase();
                                 
@@ -2306,69 +2696,109 @@
                                 return;
                             }
 
-                            // If we don't have 'extra' data, but we have instructions that are NOT "more text", 
-                            // we fall back to mock translations.
-                            if (isJapanese) {
-                                // 標記 ID 以完成建議鏈
-                                window._appliedRecommendations.push('editor_japanese_localization');
-                                
-                                if(currentH.includes("furobot") || currentH.includes("pop art")) {
-                                    headline.innerText = "FUROBOT";
-                                    subtext.innerText = "東洋と西洋のポップアートの対話";
-                                    if(desc) desc.innerText = `今週金曜日から kurodot.io で開催される、${artistName}による10点の独占的な傑作。人間と機械の相互作用を再定義します。`;
-                                } else if(currentH.includes("snowday") || currentH.includes("雪")) {
-                                    headline.innerText = "スノーデイ：次元を超えて";
-                                    subtext.innerText = "インクから物質へ，物質から機械知能へ";
-                                } else if(currentH.includes("bauhaus") || currentH.includes("藍圖") || currentH.includes("blueprint")) {
-                                    headline.innerText = "バウハウスの設計圖";
-                                    subtext.innerText = "モダニズムと幾何學的純粹さの基礎を探求する。";
-                                } else {
-                                    headline.innerText = "次元を超越する展示";
-                                    subtext.innerText = "デジタルツインによる空間と構造の再構築";
-                                }
-                            } 
-                            else if (isChinese) {
-                                if(currentH.includes("furobot") || currentH.includes("pop art")) {
-                                    headline.innerText = "FUROBOT";
-                                    subtext.innerText = "一場東西方波普藝術的對話";
-                                    if(desc) desc.innerText = `由 ${artistName} 創作的獨家傑作，重新定義了人類與機器的互動。`;
-                                } else if(currentH.includes("snowday") || currentH.includes("次元")) {
-                                    headline.innerText = "雪日：跨越維度的對話";
-                                    subtext.innerText = "從墨水到物質，從物質到機器智能";
-                                } else if(currentH.includes("bauhaus") || currentH.includes("設計圖")) {
-                                    headline.innerText = "包浩斯藍圖";
-                                    subtext.innerText = "探索現代主義與幾何純粹的基石。";
-                                } else {
-                                    headline.innerText = "超越次元的展覽";
-                                    subtext.innerText = "通過數位孿生技術重構空間與結構";
-                                    if(desc) {
-                                        desc.innerText = "一場專屬於線上空間的沉浸式體驗，開啟當代藝術的新對話。";
-                                        desc.style.borderTop = '1px solid #eee';
+                            // Real translation via /api/translate — covers ALL fields, any language
+                            if ((isJapanese || isChinese || isEnglish) && !isMoreText) {
+                                if (isJapanese) window._appliedRecommendations.push('editor_japanese_localization');
+
+                                const venueEl  = document.getElementById('banner-venue');
+                                const dateEl   = document.getElementById('banner-date');
+                                const countEl  = document.getElementById('banner-count');
+
+                                const targetLang = isJapanese ? 'Japanese' : isChinese ? 'Traditional Chinese' : 'English';
+
+                                // Collect all non-empty, non-artist fields
+                                // Lock artist name BEFORE translation — will be forcibly restored after
+                                const originalArtistName = artistName;
+                                const fieldsToTranslate = {};
+                                if (headline.innerText.trim()) fieldsToTranslate.headline = headline.innerText.trim();
+                                if (subtext.innerText.trim())  fieldsToTranslate.subtext  = subtext.innerText.trim();
+                                if (desc && desc.innerText.trim()) fieldsToTranslate.desc = desc.innerText.trim();
+                                if (venueEl && venueEl.innerText.trim()) fieldsToTranslate.venue = venueEl.innerText.trim();
+                                if (dateEl  && dateEl.innerText.trim())  fieldsToTranslate.date  = dateEl.innerText.trim();
+                                if (countEl && countEl.innerText.trim()) fieldsToTranslate.count = countEl.innerText.trim();
+
+                                fetch('/api/translate', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ fields: fieldsToTranslate, target_language: targetLang, artist_name: originalArtistName })
+                                })
+                                .then(r => r.json())
+                                .then(translated => {
+                                    if (translated.error) {
+                                        console.warn('[Editor] Translation API error:', translated.error);
+                                    } else {
+                                        if (translated.headline) headline.innerText = translated.headline;
+                                        if (translated.subtext)  subtext.innerText  = translated.subtext;
+                                        if (translated.desc && desc) { 
+                                            desc.innerText = translated.desc; 
+                                            desc.style.display = 'block'; 
+                                        }
+                                        if (translated.venue && venueEl) venueEl.innerText = translated.venue;
+                                        if (translated.date  && dateEl)  dateEl.innerText  = translated.date;
+                                        // 強制還原 artist 名字，永遠不允許被翻譯覆蓋
+                                        if (artistNameEl && originalArtistName) artistNameEl.innerText = originalArtistName;
+                                        if (translated.count && countEl) countEl.innerText = translated.count;
+
+                                        // 同步更新全域狀態
+                                        window._bannerState.title = headline.innerText;
+                                        window._bannerState.subtitle = subtext.innerText;
+                                        if (desc) window._bannerState.description = desc.innerText;
+
+                                        if (isJapanese || isChinese) {
+                                            setTimeout(() => {
+                                                showAgentConsoleMessage('color-vi', 'VI Designer: Reflowing layout after localization...', 3000, 20);
+                                                const viDot = document.querySelector('.color-vi');
+                                                if (viDot) { viDot.classList.replace('state-idle', 'state-executing'); viDot.classList.replace('state-completed', 'state-executing'); }
+                                                const canvas   = document.getElementById('banner-artboard');
+                                                const textArea = document.getElementById('banner-text-area');
+                                                if (canvas && textArea) {
+                                                    const cw = canvas.offsetWidth, ch = canvas.offsetHeight;
+                                                    const isPortrait = ch > cw;
+                                                    const dynPad = Math.max(20, Math.min(cw * 0.08, 40));
+                                                    textArea.style.padding = `${dynPad}px`;
+                                                    textArea.style.boxSizing = 'border-box';
+                                                    let fs = isPortrait ? cw * 0.11 : cw * 0.06;
+                                                    fs = Math.max(22, Math.min(fs, 52));
+                                                    if (headline) { headline.style.fontSize = fs + 'px'; headline.style.lineHeight = '1.1'; headline.style.wordBreak = 'break-word'; }
+                                                    if (subtext) { subtext.style.fontSize = Math.max(14, fs * 0.4) + 'px'; }
+                                                    let attempts = 0;
+                                                    while (textArea.scrollHeight > textArea.clientHeight && attempts < 30) {
+                                                        fs -= 1;
+                                                        if (headline) headline.style.fontSize = fs + 'px';
+                                                        if (subtext) subtext.style.fontSize = Math.max(12, fs * 0.4) + 'px';
+                                                        if (desc) desc.style.fontSize = Math.max(10, fs * 0.28) + 'px';
+                                                        attempts++;
+                                                    }
+                                                }
+                                                if (viDot) viDot.classList.replace('state-executing', 'state-completed');
+                                                showAgentConsoleMessage('color-vi', 'VI Designer: Layout reflow complete. ✓', 2000, 20);
+                                            }, 800);
+                                        } else {
+                                            setTimeout(() => triggerProactiveInsight(), 3000);
+                                        }
                                     }
-                                }
-                            }
-                            else if (isEnglish) {
-                                if(currentH.includes("次元") || currentH.includes("超越")) {
-                                    headline.innerText = "DIMENSIONLESS EXHIBITION";
-                                    subtext.innerText = "Reconstructing space and structure via digital twin.";
-                                    if(desc) {
-                                        desc.innerText = "An exclusive online unified spatial experience exploring new dialogues in contemporary art.";
-                                        desc.style.borderTop = '1px solid #eee';
-                                    }
-                                } else if(currentH.includes("furobot") || currentH.includes("pop art")) {
-                                    headline.innerText = "FUROBOT";
-                                    subtext.innerText = "A Pop Art Dialogue Between East and West";
-                                    if(desc) {
-                                        desc.innerText = `Featuring exclusive masterpieces by ${artistName}, this curation redefines the interaction between human and machine.`;
-                                        desc.style.borderTop = '1px solid #eee';
-                                    }
-                                } else {
-                                    headline.innerText = "SNOWDAY: BEYOND DIMENSIONS";
-                                    subtext.innerText = "From ink to matter, from matter to machine intelligence.";
-                                }
+
+                                    headline.style.opacity = '1';
+                                    subtext.style.opacity = '1';
+                                    if (desc) desc.style.opacity = '1';
+
+                                    if(dot) dot.classList.replace('state-executing', 'state-completed');
+                                    markNoteCompleted(noteElement);
+                                    if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'editor');
+                                })
+                                .catch(err => {
+                                    console.error('[Editor] Translation fetch failed:', err);
+                                    headline.style.opacity = '1';
+                                    subtext.style.opacity = '1';
+                                    if (desc) desc.style.opacity = '1';
+                                    if(dot) dot.classList.replace('state-executing', 'state-completed');
+                                    markNoteCompleted(noteElement);
+                                    if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'editor');
+                                });
+                                return;
                             }
                             else if (!isMoreText) {
-                                // Only change headline if it's NOT just a "more text" request
+                                // Non-translation instruction with no extra data — just show in headline
                                 headline.innerText = instructions.length > 30 ? instructions.substring(0,30) + "..." : instructions;
                             }
 
@@ -2385,80 +2815,24 @@
                             markNoteCompleted(noteElement);
                             if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'editor');
 
-                            // 鏈條式觸發：Editor 套用後，若是日文翻譯，Designer 介入重新調整 padding/layout
-                            if (isJapanese) {
-                                setTimeout(() => {
-                                    showAgentConsoleMessage('color-vi', 'VI Designer: Reflowing layout after localization...', 3000, 20);
-                                    const viDot = document.querySelector('.color-vi');
-                                    if (viDot) {
-                                        viDot.classList.replace('state-idle', 'state-executing');
-                                        viDot.classList.replace('state-completed', 'state-executing');
-                                    }
-                                    // Reapply current layout style to recalculate padding/font sizes
-                                    const canvas = document.getElementById('banner-artboard');
-                                    const textArea = document.getElementById('banner-text-area');
-                                    const headline = document.getElementById('banner-headline');
-                                    const subtext = document.getElementById('banner-subtext');
-                                    const meta = document.getElementById('banner-meta');
-                                    const desc = document.getElementById('banner-desc');
-                                    if (canvas && textArea) {
-                                        const containerWidth = canvas.offsetWidth;
-                                        const containerHeight = canvas.offsetHeight;
-                                        const isPortrait = containerHeight > containerWidth;
-                                        // Recalculate dynamic padding to fit Japanese text snugly
-                                        const dynPad = Math.max(20, Math.min(containerWidth * 0.08, 40));
-                                        textArea.style.padding = isPortrait ? `${dynPad}px ${dynPad}px` : `${dynPad}px`;
-                                        textArea.style.boxSizing = 'border-box';
-                                        textArea.style.display = 'flex';
-                                        textArea.style.flexDirection = 'column';
-                                        textArea.style.justifyContent = 'flex-end';
-                                        // Smart font scaling for Japanese characters
-                                        let fontSize = isPortrait ? containerWidth * 0.11 : containerWidth * 0.06;
-                                        fontSize = Math.max(22, Math.min(fontSize, 52));
-                                        if (headline) {
-                                            headline.style.fontSize = fontSize + 'px';
-                                            headline.style.lineHeight = '1.1';
-                                            headline.style.wordBreak = 'break-word';
-                                        }
-                                        if (subtext) {
-                                            subtext.style.fontSize = Math.max(14, fontSize * 0.4) + 'px';
-                                            subtext.style.margin = `${dynPad * 0.3}px 0`;
-                                        }
-                                        if (meta) {
-                                            meta.style.marginTop = `${dynPad * 0.5}px`;
-                                            meta.style.flexWrap = 'wrap';
-                                        }
-                                        if (desc) {
-                                            desc.style.marginTop = `${dynPad * 0.4}px`;
-                                            desc.style.paddingTop = `${dynPad * 0.4}px`;
-                                            desc.style.fontSize = Math.max(11, fontSize * 0.28) + 'px';
-                                            desc.style.webkitLineClamp = 'none';
-                                            desc.style.overflow = 'visible';
-                                            desc.style.maxHeight = 'none';
-                                        }
-                                        // Auto-shrink if still overflowing
-                                        let attempts = 0;
-                                        while (textArea.scrollHeight > textArea.clientHeight && attempts < 30) {
-                                            fontSize -= 1;
-                                            if (headline) headline.style.fontSize = fontSize + 'px';
-                                            if (subtext) subtext.style.fontSize = Math.max(12, fontSize * 0.4) + 'px';
-                                            if (desc) desc.style.fontSize = Math.max(10, fontSize * 0.28) + 'px';
-                                            attempts++;
-                                        }
-                                    }
-                                    if (viDot) viDot.classList.replace('state-executing', 'state-completed');
-                                    showAgentConsoleMessage('color-vi', 'VI Designer: Layout reflow complete. ✓', 2000, 20);
-                                }, 800);
-                            } else {
-                                // 其他語言：再次檢查是否有後續建議
-                                setTimeout(() => triggerProactiveInsight(), 3000);
-                            }
                         }, 500);
                     }
                 }, 1500);
             } 
             // 2) Designer logic (change image/style)
             else if (role.toLowerCase().includes('designer') || role === 'VI Designer') {
+                // ── Misroute guard: skip when image-style data is pre-loaded ──
+                if (!(extra && extra.analyzedStyle)) {
+                    const _il = instructions.toLowerCase();
+                    const _hasOwn = _DESIGNER_KW.some(k => _il.includes(k));
+                    const _hasEd  = _EDITOR_KW.some(k => _il.includes(k));
+                    const _hasTech = _TECH_KW.some(k => _il.includes(k));
+                    if (!_hasOwn && (_hasEd || _hasTech)) {
+                        agentConfused('🎨 VI Designer', 'vi', instructions, noteElement, extra);
+                        return;
+                    }
+                }
+
                 showAgentConsoleMessage(`color-${roleShort}`, `VI Designer is applying advanced layout for: "${instructions}"...`, 3000, 20);
                 setTimeout(() => {
                     const canvas = document.getElementById('banner-artboard');
@@ -2470,6 +2844,434 @@
                     const subtext = document.getElementById('banner-subtext');
                     const meta = document.getElementById('banner-meta');
                     const desc = document.getElementById('banner-desc');
+
+                    // ── Analyzed Style from image reference ─────────────────
+                    if (extra && extra.analyzedStyle) {
+                        const s = extra.analyzedStyle;
+                        showAgentConsoleMessage(`color-${roleShort}`, `VI Designer: Applying "${s.mood}" style — ${s.description}`, 4000, 20);
+
+                        const isDark = s.color_scheme === 'dark' || s.color_scheme === 'monochrome';
+                        const isVibrant = s.color_scheme === 'vibrant' || s.color_scheme === 'gradient' || s.color_scheme === 'pastel';
+                        const isGradient = s.background_style === 'gradient' || s.background_style === 'textured';
+                        const isFullImage = s.background_style === 'full_image' || s.background_style === 'full-image';
+                        const isSplit = s.layout === 'split' || s.layout === 'left-aligned' || s.layout === 'right-aligned';
+                        const isCentered = s.layout === 'centered';
+                        const isHeavy = s.font_weight === 'heavy' || s.font_weight === 'bold';
+                        const isBoldMood = s.mood === 'bold' || s.mood === 'dramatic' || s.mood === 'retro' || s.mood === 'editorial' || s.mood === 'futuristic';
+                        // On dark OR vibrant/colorful backgrounds, text must be light
+                        const needsLightText = isDark || isVibrant;
+
+                        const bgColor = s.primary_color || (isDark ? '#111111' : '#f0f0ee');
+                        const textColor = needsLightText ? '#ffffff' : '#111111';
+                        const fontFamilyMap = {
+                            'serif': "'Times New Roman', Georgia, serif",
+                            'sans-serif': "'Helvetica Neue', Arial, sans-serif",
+                            'display': "'Impact', 'Arial Black', 'Helvetica Neue', sans-serif",
+                            'minimal': "'Futura', 'Century Gothic', 'Helvetica Neue', sans-serif",
+                            'slab': "'Rockwell', 'Courier New', serif",
+                            'monospace': "'Courier New', 'Monaco', monospace"
+                        };
+                        const fontWeightMap = { 'thin': '100', 'regular': '400', 'bold': '700', 'heavy': '900' };
+                        const chosenFont = fontFamilyMap[s.typography_style] || "'Helvetica Neue', sans-serif";
+                        const chosenWeight = fontWeightMap[s.font_weight] || '400';
+
+                        // ── 1. CANVAS ASPECT RATIO ───────────────────────────────────
+                        // Bold/poster mood → portrait (4:5). Centered/minimal → square. Else keep.
+                        let finalW, finalH;
+                        if (isBoldMood || isSplit) {
+                            finalW = 480; finalH = 600;  // portrait poster
+                        } else if (isCentered && !isFullImage) {
+                            finalW = 600; finalH = 600;  // square editorial
+                        } else {
+                            finalW = canvas.offsetWidth || 640;
+                            finalH = canvas.offsetHeight || 400;
+                        }
+                        canvas.style.width = finalW + 'px';
+                        canvas.style.height = finalH + 'px';
+                        if (workspace) {
+                            workspace.style.transition = 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+                            workspace.style.width = finalW + 'px';
+                            workspace.style.height = finalH + 'px';
+                            workspace.style.left = (window.innerWidth - finalW) / 2 + 'px';
+                            workspace.style.top = (window.innerHeight - finalH) / 2 + 'px';
+                        }
+
+                        // ── 2. BACKGROUND ────────────────────────────────────────────
+                        canvas.style.overflow = 'hidden';
+                        if (isGradient && s.secondary_color) {
+                            // Apply gradient using primary → secondary colors
+                            const angle = isSplit ? '160deg' : '135deg';
+                            canvas.style.background = `linear-gradient(${angle}, ${bgColor} 0%, ${s.secondary_color} 100%)`;
+                            canvas.style.backgroundColor = bgColor; // fallback
+                        } else {
+                            canvas.style.background = '';
+                            canvas.style.backgroundColor = bgColor;
+                        }
+
+                        // ── 3. LAYOUT STRUCTURE ──────────────────────────────────────
+                        if (isFullImage && imgArea) {
+                            canvas.style.display = 'block';
+                            imgArea.style.position = 'absolute';
+                            imgArea.style.top = '0'; imgArea.style.left = '0';
+                            imgArea.style.width = '100%'; imgArea.style.height = '100%';
+                            imgArea.style.zIndex = '1'; imgArea.style.margin = '0';
+                            imgArea.style.borderRadius = '0';
+                            if (imgBg) { imgBg.style.objectFit = 'cover'; imgBg.style.width = '100%'; imgBg.style.height = '100%'; }
+                            if (textArea) {
+                                textArea.style.position = 'absolute';
+                                textArea.style.top = '0'; textArea.style.left = '0';
+                                textArea.style.width = '100%'; textArea.style.height = '100%';
+                                textArea.style.zIndex = '10'; textArea.style.boxSizing = 'border-box';
+                                textArea.style.margin = '0'; textArea.style.padding = '48px';
+                                textArea.style.display = 'flex'; textArea.style.flexDirection = 'column';
+                                textArea.style.justifyContent = 'flex-end'; textArea.style.alignItems = 'flex-start';
+                                textArea.style.background = needsLightText
+                                    ? 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)'
+                                    : 'linear-gradient(to top, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.2) 60%, transparent 100%)';
+                            }
+                        } else if (isSplit && imgArea && textArea) {
+                            // Split layout: text on left (45%), image on right (55%)
+                            const flexDir = s.layout === 'right-aligned' ? 'row-reverse' : 'row';
+                            canvas.style.display = 'flex';
+                            canvas.style.flexDirection = flexDir;
+                            canvas.style.padding = '0';
+
+                            textArea.style.position = 'relative'; textArea.style.zIndex = '2';
+                            textArea.style.width = '45%'; textArea.style.height = '100%';
+                            textArea.style.padding = '32px 28px'; textArea.style.boxSizing = 'border-box';
+                            textArea.style.display = 'flex'; textArea.style.flexDirection = 'column';
+                            textArea.style.justifyContent = 'flex-start'; textArea.style.margin = '0';
+
+                            imgArea.style.position = 'relative'; imgArea.style.zIndex = '1';
+                            imgArea.style.width = '55%'; imgArea.style.height = '100%';
+                            imgArea.style.margin = '0'; imgArea.style.overflow = 'hidden';
+                            imgArea.style.borderRadius = isBoldMood ? '0' : '8px';
+                            if (imgBg) { imgBg.style.objectFit = 'cover'; imgBg.style.width = '100%'; imgBg.style.height = '100%'; }
+                        } else {
+                            // Column layout (stacked): image top, text bottom
+                            canvas.style.display = 'flex'; canvas.style.flexDirection = 'column';
+                            if (imgArea) {
+                                imgArea.style.position = 'relative'; imgArea.style.zIndex = '1';
+                                imgArea.style.width = '100%'; imgArea.style.height = '50%';
+                                imgArea.style.margin = '0'; imgArea.style.overflow = 'hidden';
+                                imgArea.style.borderRadius = isBoldMood ? '0' : '8px';
+                            }
+                            if (textArea) {
+                                textArea.style.position = 'relative'; textArea.style.zIndex = '2';
+                                textArea.style.width = '100%'; textArea.style.height = 'auto';
+                                textArea.style.padding = '32px'; textArea.style.boxSizing = 'border-box';
+                                textArea.style.margin = '0'; textArea.style.display = 'flex';
+                                textArea.style.flexDirection = 'column';
+                                textArea.style.justifyContent = isCentered ? 'center' : 'flex-start';
+                            }
+                        }
+
+                        // ── 3b. CIRCLE IMAGE MASK ────────────────────────────────────
+                        console.log('[VI Designer] image_shape from Gemini:', s.image_shape);
+                        if (s.image_shape === 'circle' && imgArea && imgBg) {
+                            // Force column layout so circle sits above text correctly
+                            canvas.style.display = 'flex';
+                            canvas.style.flexDirection = 'column';
+                            canvas.style.alignItems = 'center';
+                            canvas.style.padding = `${Math.round(finalH * 0.05)}px 0 0 0`;
+                            canvas.style.overflow = 'hidden';
+                            canvas.style.boxSizing = 'border-box';
+
+                            const cDiam = Math.round(Math.min(finalW * 0.58, finalH * 0.46));
+                            // Reset all layout-specific positioning from section 3
+                            imgArea.style.cssText = [
+                                'position:relative',
+                                `width:${cDiam}px`,
+                                `height:${cDiam}px`,
+                                'border-radius:50%',
+                                'overflow:hidden',
+                                'flex-shrink:0',
+                                `border:6px solid ${s.accent_color || '#ff6b35'}`,
+                                'box-sizing:border-box',
+                                'z-index:1',
+                                'margin:0 auto'
+                            ].join(';');
+                            imgBg.style.objectFit = 'cover';
+                            imgBg.style.width = '100%';
+                            imgBg.style.height = '100%';
+
+                            // Re-configure textArea for below-circle layout
+                            if (textArea) {
+                                textArea.style.position = 'relative';
+                                textArea.style.zIndex = '2';
+                                textArea.style.width = '100%';
+                                textArea.style.height = 'auto';
+                                textArea.style.flex = '1';
+                                textArea.style.padding = `${Math.round(finalW * 0.07)}px`;
+                                textArea.style.boxSizing = 'border-box';
+                                textArea.style.display = 'flex';
+                                textArea.style.flexDirection = 'column';
+                                textArea.style.justifyContent = 'center';
+                                textArea.style.margin = '0';
+                            }
+                        }
+
+                        // ── 4. TEXT AREA COLORS & ALIGNMENT ─────────────────────────
+                        if (textArea) {
+                            // Transparent so canvas gradient/color shows through
+                            textArea.style.backgroundColor = 'transparent';
+                            textArea.style.color = textColor;
+                            const alignMap = { 'centered': 'center', 'left-aligned': 'left', 'right-aligned': 'right', 'split': 'left' };
+                            const textAlign = alignMap[s.layout] || 'left';
+                            textArea.style.textAlign = textAlign;
+                            textArea.style.alignItems = textAlign === 'center' ? 'center' : (textAlign === 'right' ? 'flex-end' : 'flex-start');
+                        }
+
+                        // ── 5. HEADLINE TYPOGRAPHY ───────────────────────────────────
+                        if (headline) {
+                            const isPortrait = finalH > finalW;
+                            let hSize = isPortrait
+                                ? (isHeavy ? finalW * 0.17 : finalW * 0.12)
+                                : (isHeavy ? finalW * 0.10 : finalW * 0.07);
+                            hSize = Math.max(22, Math.min(hSize, isHeavy ? 84 : 56));
+
+                            headline.style.fontFamily = chosenFont;
+                            headline.style.fontWeight = chosenWeight;
+                            headline.style.fontSize = hSize + 'px';
+                            headline.style.lineHeight = '1.02';
+                            headline.style.textTransform = isHeavy ? 'uppercase' : 'none';
+                            headline.style.letterSpacing = isHeavy ? '-0.02em' : 'normal';
+                            // On colored/dark backgrounds: prefer accent color (e.g. yellow on purple), fallback to white
+                            headline.style.color = needsLightText
+                                ? (s.accent_color || '#ffffff')
+                                : (s.accent_color || textColor);
+                            headline.style.wordBreak = 'break-word';
+                        }
+
+                        // ── 6. SUBTEXT ───────────────────────────────────────────────
+                        if (subtext) {
+                            // On vibrant: use accent or white. On dark: white. On light: secondary.
+                            subtext.style.color = needsLightText
+                                ? (s.accent_color || 'rgba(255,255,255,0.9)')
+                                : (s.secondary_color || 'rgba(0,0,0,0.65)');
+                            subtext.style.fontFamily = chosenFont;
+                            subtext.style.fontWeight = isHeavy ? '500' : '400';
+                            subtext.style.letterSpacing = isBoldMood ? '0.06em' : 'normal';
+                            subtext.style.textTransform = isBoldMood ? 'uppercase' : 'none';
+                            subtext.style.display = 'block';
+                        }
+
+                        // ── 7. META & DESC DECORATION ────────────────────────────────
+                        const metaEl = document.getElementById('banner-meta');
+                        if (metaEl) {
+                            metaEl.style.color = needsLightText ? 'rgba(255,255,255,0.80)' : 'rgba(0,0,0,0.55)';
+                            metaEl.style.display = 'flex'; metaEl.style.flexWrap = 'wrap'; metaEl.style.height = 'auto';
+                            if (isBoldMood) {
+                                const borderColor = needsLightText ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)';
+                                // Poster-style bordered date boxes
+                                metaEl.querySelectorAll('.meta-item, span').forEach(item => {
+                                    item.style.border = `1px solid ${borderColor}`;
+                                    item.style.padding = '2px 7px';
+                                    item.style.display = 'inline-block';
+                                    item.style.fontFamily = chosenFont;
+                                    item.style.letterSpacing = '0.04em';
+                                });
+                            }
+                        }
+                        if (desc) {
+                            desc.style.color = needsLightText ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.55)';
+                            desc.style.borderTop = `1px solid ${needsLightText ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.18)'}`;
+                            desc.style.marginTop = '14px'; desc.style.paddingTop = '10px';
+                            desc.style.display = 'block'; desc.style.webkitLineClamp = 'none';
+                            desc.style.maxHeight = 'none'; desc.style.overflow = 'visible';
+                        }
+
+                        // ── 8. AUTO-SHRINK TYPOGRAPHY ────────────────────────────────
+                        setTimeout(() => {
+                            if (headline && textArea) {
+                                textArea.style.overflow = 'hidden';
+                                let fs = parseFloat(headline.style.fontSize) || 40;
+                                let attempts = 0;
+                                while (textArea.scrollHeight > textArea.clientHeight && attempts < 40) {
+                                    fs -= 0.8;
+                                    headline.style.fontSize = fs + 'px';
+                                    if (subtext) subtext.style.fontSize = Math.max(12, fs * 0.42) + 'px';
+                                    if (metaEl) metaEl.style.fontSize = Math.max(8, fs * 0.26) + 'px';
+                                    if (desc) desc.style.fontSize = Math.max(10, fs * 0.30) + 'px';
+                                    attempts++;
+                                }
+                            }
+                        }, 120);
+
+                        // ── 9. DECORATIVE SVG ELEMENTS ───────────────────────────────
+                        // Clear any previous decoration layer first
+                        const prevDeco = canvas.querySelector('.deco-layer');
+                        if (prevDeco) prevDeco.remove();
+
+                        // FALLBACK: if Gemini didn't return decorative_elements, generate from mood + colors
+                        let _decoEls = (s.decorative_elements && s.decorative_elements.length > 0)
+                            ? s.decorative_elements : null;
+                        console.log('[VI Designer] decorative_elements from Gemini:', _decoEls);
+                        if (!_decoEls) {
+                            const _ac = s.accent_color || '#ffffff', _sc = s.secondary_color || s.accent_color || '#ffffff';
+                            const _moodSets = {
+                                bold:       [{type:'star',     color:_ac, opacity:0.85, size:'large',  placement:'corner'},
+                                             {type:'burst',    color:_sc, opacity:0.70, size:'medium', placement:'corner'},
+                                             {type:'dot-grid', color:_ac, opacity:0.50, size:'small',  placement:'edge'}],
+                                dramatic:   [{type:'burst',    color:_ac, opacity:0.90, size:'large',  placement:'corner'},
+                                             {type:'cross',    color:_sc, opacity:0.60, size:'medium', placement:'scattered'},
+                                             {type:'arc',      color:_ac, opacity:0.50, size:'medium', placement:'edge'}],
+                                retro:      [{type:'star',     color:_ac, opacity:0.90, size:'large',  placement:'corner'},
+                                             {type:'zigzag',   color:_sc, opacity:0.60, size:'medium', placement:'edge'},
+                                             {type:'circle',   color:_ac, opacity:0.40, size:'small',  placement:'scattered'}],
+                                futuristic: [{type:'diamond',  color:_ac, opacity:0.80, size:'medium', placement:'corner'},
+                                             {type:'cross',    color:_sc, opacity:0.60, size:'small',  placement:'scattered'},
+                                             {type:'arc',      color:_ac, opacity:0.50, size:'medium', placement:'edge'}],
+                                editorial:  [{type:'rectangle',color:_ac, opacity:0.80, size:'medium', placement:'corner'},
+                                             {type:'dot-grid', color:_sc, opacity:0.60, size:'small',  placement:'scattered'}],
+                                elegant:    [{type:'arc',      color:_ac, opacity:0.60, size:'medium', placement:'corner'},
+                                             {type:'dot-grid', color:_sc, opacity:0.40, size:'small',  placement:'scattered'}],
+                                minimalist: [{type:'circle',   color:_ac, opacity:0.50, size:'small',  placement:'corner'},
+                                             {type:'dot-grid', color:_sc, opacity:0.30, size:'small',  placement:'edge'}],
+                                organic:    [{type:'arc',      color:_ac, opacity:0.60, size:'large',  placement:'corner'},
+                                             {type:'circle',   color:_sc, opacity:0.40, size:'medium', placement:'scattered'}]
+                            };
+                            _decoEls = _moodSets[s.mood] || _moodSets['bold'];
+                            console.log('[VI Designer] Using mood fallback decorations for mood:', s.mood, _decoEls);
+                        }
+
+                        // Post-process: avoid decoration color matching text (accent_color is used for headline)
+                        // Replace accent_color matches with secondary or primary color, and cap all opacities low
+                        if (_decoEls) {
+                            const _acLow = (s.accent_color || '').toLowerCase();
+                            const _altColor = s.secondary_color || s.primary_color || '#888888';
+                            _decoEls = _decoEls.map(el => ({
+                                ...el,
+                                color: (el.color || '').toLowerCase() === _acLow ? _altColor : el.color,
+                                opacity: Math.min(el.opacity != null ? el.opacity : 0.9, 0.7)
+                            }));
+                        }
+
+                        if (_decoEls && _decoEls.length) {
+                            const decoLayer = document.createElement('div');
+                            decoLayer.className = 'deco-layer';
+                            decoLayer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0;';
+
+                            const W = finalW, H = finalH;
+
+                            // Returns an SVG string for a given element descriptor
+                            function makeSVGShape(el, x, y, sz) {
+                                const c = el.color || '#ffffff';
+                                const op = el.opacity != null ? el.opacity : 0.75;
+                                const t = el.type;
+                                const ns = 'http://www.w3.org/2000/svg';
+                                let inner = '';
+                                if (t === 'circle') {
+                                    inner = `<circle cx="${sz/2}" cy="${sz/2}" r="${sz/2}" fill="${c}"/>`;
+                                } else if (t === 'rectangle') {
+                                    inner = `<rect x="0" y="0" width="${sz}" height="${sz*0.6}" fill="${c}"/>`;
+                                } else if (t === 'triangle') {
+                                    inner = `<polygon points="${sz/2},0 ${sz},${sz} 0,${sz}" fill="${c}"/>`;
+                                } else if (t === 'diamond') {
+                                    inner = `<polygon points="${sz/2},0 ${sz},${sz/2} ${sz/2},${sz} 0,${sz/2}" fill="${c}"/>`;
+                                } else if (t === 'star') {
+                                    // 4-pointed star / burst
+                                    const r1 = sz/2, r2 = sz/5, cx = sz/2, cy = sz/2;
+                                    let pts = '';
+                                    for (let i=0;i<8;i++) {
+                                        const angle = (i * Math.PI/4) - Math.PI/2;
+                                        const r = i%2===0 ? r1 : r2;
+                                        pts += `${(cx + r*Math.cos(angle)).toFixed(1)},${(cy + r*Math.sin(angle)).toFixed(1)} `;
+                                    }
+                                    inner = `<polygon points="${pts.trim()}" fill="${c}"/>`;
+                                } else if (t === 'burst') {
+                                    // 12-point starburst
+                                    const r1=sz/2, r2=sz/3.5, cx=sz/2, cy=sz/2;
+                                    let pts='';
+                                    for(let i=0;i<24;i++){
+                                        const a=(i*Math.PI/12)-Math.PI/2;
+                                        const r=i%2===0?r1:r2;
+                                        pts+=`${(cx+r*Math.cos(a)).toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)} `;
+                                    }
+                                    inner=`<polygon points="${pts.trim()}" fill="${c}"/>`;
+                                } else if (t === 'cross') {
+                                    const th = sz*0.2;
+                                    inner = `<rect x="${sz/2-th/2}" y="0" width="${th}" height="${sz}" fill="${c}"/>
+                                             <rect x="0" y="${sz/2-th/2}" width="${sz}" height="${th}" fill="${c}"/>`;
+                                } else if (t === 'dot-grid') {
+                                    const dots = [], r = sz*0.08, step = sz/3;
+                                    for(let ri=0;ri<3;ri++) for(let ci=0;ci<3;ci++)
+                                        dots.push(`<circle cx="${step/2+ci*step}" cy="${step/2+ri*step}" r="${r}" fill="${c}"/>`);
+                                    inner = dots.join('');
+                                } else if (t === 'arc') {
+                                    const r=sz*0.45, cx=sz/2, cy=sz/2;
+                                    inner = `<path d="M ${cx-r} ${cy} A ${r} ${r} 0 0 1 ${cx+r} ${cy}" stroke="${c}" stroke-width="${sz*0.1}" fill="none"/>`;
+                                } else if (t === 'zigzag') {
+                                    const seg=sz/4, h=sz*0.3;
+                                    let d=`M 0 ${sz/2}`;
+                                    for(let i=0;i<5;i++) d+=` L ${(i+0.5)*seg} ${i%2===0?sz/2-h:sz/2+h}`;
+                                    inner=`<path d="${d}" stroke="${c}" stroke-width="${sz*0.08}" fill="none" stroke-linecap="round"/>`;
+                                } else {
+                                    // fallback: circle
+                                    inner = `<circle cx="${sz/2}" cy="${sz/2}" r="${sz/2}" fill="${c}"/>`;
+                                }
+                                const rotation = Math.random() > 0.4 ? `rotate(${Math.floor(Math.random()*360)},${sz/2},${sz/2})` : '';
+                                const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" style="position:absolute;left:${x}px;top:${y}px;opacity:${op};">
+                                    <g transform="${rotation}">${inner}</g></svg>`;
+                                return svg;
+                            }
+
+                            // Position each element type — corners, edges, or scattered
+                            const fragments = [];
+                            _decoEls.forEach((el, idx) => {
+                                const sizeMap = { small: W*0.06, medium: W*0.11, large: W*0.18 };
+                                const sz = Math.round(sizeMap[el.size] || W*0.08);
+                                const margin = sz * 0.15;
+                                const positions = [];
+
+                                if (el.placement === 'corner') {
+                                    // Place one in each corner — fully inside canvas bounds
+                                    const corners = [
+                                        { x: 0,      y: 0 },
+                                        { x: W - sz, y: 0 },
+                                        { x: 0,      y: H - sz },
+                                        { x: W - sz, y: H - sz }
+                                    ];
+                                    // Distribute corners across elements of type 'corner'
+                                    const cornerEls = _decoEls.filter(e => e.placement === 'corner');
+                                    const ceIdx = cornerEls.indexOf(el);
+                                    const pick = corners.filter((_, i) => i % Math.max(1, cornerEls.length) === ceIdx % Math.max(1, cornerEls.length));
+                                    positions.push(...pick);
+                                } else if (el.placement === 'edge') {
+                                    // Midpoints of top and bottom edges, inset so visible
+                                    positions.push(
+                                        { x: W/2 - sz/2, y: 4 },
+                                        { x: W/2 - sz/2, y: H - sz - 4 }
+                                    );
+                                } else { // scattered
+                                    const count = el.size === 'small' ? 5 : 3;
+                                    for (let i=0; i<count; i++) {
+                                        positions.push({
+                                            x: margin + Math.random() * (W - sz - margin*2),
+                                            y: margin + Math.random() * (H - sz - margin*2)
+                                        });
+                                    }
+                                }
+                                positions.forEach(pos => {
+                                    fragments.push(makeSVGShape(el, Math.round(pos.x), Math.round(pos.y), sz));
+                                });
+                            });
+
+                            // Append SVG nodes via DOM (more reliable than innerHTML for SVG)
+                            const tempWrap = document.createElement('div');
+                            tempWrap.innerHTML = fragments.join('');
+                            Array.from(tempWrap.children).forEach(node => decoLayer.appendChild(node));
+                            canvas.style.position = 'relative';
+                            canvas.appendChild(decoLayer);
+                            showAgentConsoleMessage(`color-${roleShort}`, `VI Designer: Added ${fragments.length} decorative elements ✓`, 3000, 20);
+                        }
+
+                        if(dot) dot.classList.replace('state-executing', 'state-completed');
+                        markNoteCompleted(noteElement);
+                        if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'vi');
+                        showAgentConsoleMessage(`color-${roleShort}`, `VI Designer: Style applied ✓ (${s.mood} / ${s.color_scheme} / ${s.layout})`, 3000, 20);
+                        return;
+                    }
 
                     // 若先前有 Editorial 翻譯過的文字，在此處恢復
                     if (window._bannerState && window._bannerState.title && headline) {
@@ -2484,6 +3286,39 @@
 
                     let ratioMatch = instructions.match(/(\d+):(\d+)/);
                     if (instructions.toLowerCase().includes('square')) ratioMatch = [null, '1', '1'];
+
+                    // ── Text size adjustment ─────────────────────────────────────────
+                    const _til = instructions.toLowerCase();
+                    const isShrinkText = _til.includes('smaller') || _til.includes('shrink') || _til.includes('縮小字') || _til.includes('reduce text') || _til.includes('size down') || _til.includes('decrease text') || (_til.includes('smaller') && _til.includes('text'));
+                    const isGrowText   = _til.includes('bigger') || _til.includes('larger') || _til.includes('放大字') || _til.includes('increase text') || _til.includes('size up') || (_til.includes('larger') && _til.includes('text')) || (_til.includes('bigger') && _til.includes('text'));
+                    if ((isShrinkText || isGrowText) && headline) {
+                        const currentSize = parseFloat(getComputedStyle(headline).fontSize) || 40;
+                        // Detect whether a specific step was requested (e.g. "10%", "8px")
+                        const pctMatch = instructions.match(/(\d+)\s*%/);
+                        const pxMatch  = instructions.match(/(\d+)\s*px/);
+                        let step = pctMatch ? currentSize * parseFloat(pctMatch[1]) / 100
+                                 : pxMatch  ? parseFloat(pxMatch[1])
+                                 : currentSize * 0.15;  // default 15%
+                        const newSize = isShrinkText
+                            ? Math.max(12, currentSize - step)
+                            : Math.min(140, currentSize + step);
+                        headline.style.fontSize = newSize + 'px';
+                        if (subtext) {
+                            const sCur = parseFloat(getComputedStyle(subtext).fontSize) || 18;
+                            const sNew = isGrowText ? Math.min(60, sCur + sCur * 0.15) : Math.max(10, sCur - sCur * 0.15);
+                            subtext.style.fontSize = sNew + 'px';
+                        }
+                        if (desc) {
+                            const dCur = parseFloat(getComputedStyle(desc).fontSize) || 14;
+                            const dNew = isGrowText ? Math.min(32, dCur + dCur * 0.15) : Math.max(9, dCur - dCur * 0.15);
+                            desc.style.fontSize = dNew + 'px';
+                        }
+                        showAgentConsoleMessage(`color-${roleShort}`, `VI Designer: Text ${isShrinkText ? 'reduced' : 'enlarged'} to ${Math.round(newSize)}px ✓`, 3000, 20);
+                        if(dot) dot.classList.replace('state-executing', 'state-completed');
+                        markNoteCompleted(noteElement);
+                        if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'vi');
+                        return;
+                    }
                     
                     // Analyst merge logic: 4:5 + Dark Mode
                     const isDarkMode = instructions.toLowerCase().includes('dark mode') || instructions.includes('深色');
@@ -2960,6 +3795,18 @@
                 const isPDF  = instructions.toLowerCase().includes('pdf');
                 const isEnd  = instructions.toLowerCase().includes('end');
                 const isCopy = instructions.toLowerCase().includes('copy') || instructions.toLowerCase().includes('clipboard');
+
+                // ── Misroute guard ──
+                {
+                    const _il = instructions.toLowerCase();
+                    const _hasOwn = _TECH_KW.some(k => _il.includes(k)) || isJPG || isPNG || isPDF || isCopy;
+                    const _hasEd  = _EDITOR_KW.some(k => _il.includes(k));
+                    const _hasDes = _DESIGNER_KW.some(k => _il.includes(k));
+                    if (!_hasOwn && (_hasEd || _hasDes)) {
+                        agentConfused('⚙️ Tech Producer', 'tech', instructions, noteElement, extra);
+                        return;
+                    }
+                }
                 
                 let formatLabel = isPNG ? 'PNG' : (isPDF ? 'PDF' : (isCopy ? 'Clipboard' : 'JPG'));
                 if (isEnd && !isPNG && !isPDF && !isCopy) formatLabel = 'JPG';
@@ -3002,8 +3849,10 @@
                                 `background:${bgColor}`,
                                 'overflow:hidden',
                                 'display:flex',
-                                `flex-direction:${flexDir}`
-                            ].join(';');
+                                `flex-direction:${flexDir}`,
+                                cs.alignItems !== 'normal' ? `align-items:${cs.alignItems}` : '',
+                                cs.padding !== '0px' ? `padding:${cs.padding}` : ''
+                            ].filter(Boolean).join(';');
 
                             const imgAreaEl   = document.getElementById('banner-img-area');
                             const imgBgEl     = document.getElementById('banner-img-bg');
@@ -3022,10 +3871,16 @@
                                 const imgBgImage = imgBgEl ? imgBgEl.style.backgroundImage : '';
                                 
                                 const imgDiv = document.createElement('div');
+                                const imgBorderRadius = getComputedStyle(imgAreaEl).borderRadius;
+                                const imgBorderStyle = getComputedStyle(imgAreaEl).border;
                                 imgDiv.style.cssText = [
                                     `width:${imgW}px`, `height:${imgH}px`,
-                                    'flex-shrink:0', 'overflow:hidden', 'position:relative'
-                                ].join(';');
+                                    'flex-shrink:0', 'overflow:hidden', 'position:relative',
+                                    imgBorderRadius && imgBorderRadius !== '0px' ? `border-radius:${imgBorderRadius}` : '',
+                                    imgBorderStyle && !imgBorderStyle.startsWith('0px') ? `border:${imgBorderStyle}` : '',
+                                    'box-sizing:border-box',
+                                    'margin:0 auto'
+                                ].filter(Boolean).join(';');
                                 
                                 if (isOverlay) {
                                     imgDiv.style.position = 'absolute';
@@ -3124,23 +3979,29 @@
                                         itemWrap.style.cssText = 'display:flex; align-items:center; gap:6px;';
                                         
                                         // Try to find if there's an icon before this text.
-                                        // Lucide replaces <i data-lucide="..."> with <svg> at runtime — check SVG tag.
+                                        // Lucide replaces <i data-lucide="..."> with <svg> at runtime.
+                                        // tagName for SVG elements in HTML documents is lowercase 'svg'.
                                         const icon = el.previousElementSibling;
                                         const isLucideIcon = icon && (
-                                            icon.tagName === 'SVG' ||
-                                            (icon.tagName === 'I' && icon.getAttribute('data-lucide'))
+                                            icon.tagName.toLowerCase() === 'svg' ||
+                                            (icon.tagName.toUpperCase() === 'I' && icon.getAttribute('data-lucide'))
                                         );
                                         if (isLucideIcon) {
                                             const iconStyle = getComputedStyle(icon);
                                             const iconW = parseInt(iconStyle.width) || 12;
                                             const iconH = parseInt(iconStyle.height) || 12;
                                             const iconColor = iconStyle.color || '#888888';
-                                            // Clone and resolve currentColor so SVG serializes correctly for html2canvas
+                                            // Clone and replace ALL 'currentColor' refs so the SVG renders
+                                            // correctly when embedded as an <img> data URL (no CSS inheritance there).
                                             const svgClone = icon.cloneNode(true);
                                             svgClone.setAttribute('width', iconW);
                                             svgClone.setAttribute('height', iconH);
-                                            svgClone.setAttribute('stroke', iconColor);
                                             if (!svgClone.getAttribute('xmlns')) svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                                            // Resolve currentColor on root and all descendants
+                                            [svgClone, ...svgClone.querySelectorAll('*')].forEach(node => {
+                                                if (node.getAttribute('stroke') === 'currentColor') node.setAttribute('stroke', iconColor);
+                                                if (node.getAttribute('fill')   === 'currentColor') node.setAttribute('fill',   iconColor);
+                                            });
                                             const svgStr = new XMLSerializer().serializeToString(svgClone);
                                             const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
                                             const iconImg = document.createElement('img');
@@ -3173,6 +4034,21 @@
                                 }
 
                                 wrap.appendChild(txtDiv);
+                            }
+
+                            // ── Decorative SVG layer ─────────────────────────────────
+                            const decoLayerEl = artboard.querySelector('.deco-layer');
+                            if (decoLayerEl) {
+                                const decoClone = decoLayerEl.cloneNode(true);
+                                decoClone.style.position = 'absolute';
+                                decoClone.style.top = '0';
+                                decoClone.style.left = '0';
+                                decoClone.style.width = '100%';
+                                decoClone.style.height = '100%';
+                                decoClone.style.pointerEvents = 'none';
+                                decoClone.style.zIndex = '5';
+                                wrap.style.position = 'relative';
+                                wrap.appendChild(decoClone);
                             }
 
                             document.body.appendChild(wrap);
@@ -3268,6 +4144,82 @@
 
                     doCapture();
                 }, 1000);
+            }
+            // 4) Data Analyst logic (popular artwork / stats insights)
+            else if (role.toLowerCase().includes('analyst') || role.toLowerCase().includes('data analyst')) {
+                const _il = instructions.toLowerCase();
+
+                // ── Misroute guard ──
+                {
+                    const _hasOwn  = _ANALYST_KW.some(k => _il.includes(k));
+                    const _hasEd   = _EDITOR_KW.some(k => _il.includes(k));
+                    const _hasDes  = _DESIGNER_KW.some(k => _il.includes(k));
+                    const _hasTech = _TECH_KW.some(k => _il.includes(k));
+                    if (!_hasOwn && (_hasEd || _hasDes || _hasTech)) {
+                        agentConfused('📊 Data Analyst', 'analyst', instructions, noteElement, extra);
+                        return;
+                    }
+                }
+
+                const isArtworkRequest = _ANALYST_KW.some(k => _il.includes(k));
+
+                if (isArtworkRequest) {
+                    showAgentConsoleMessage(`color-${roleShort}`, `Analyst: Scanning exhibition data for top-performing painting...`, 3500, 20, '🔍');
+                    const jobId = window._currentJobId;
+                    if (!jobId) {
+                        setTimeout(() => {
+                            showAgentConsoleMessage(`color-${roleShort}`, `Analyst: No exhibition loaded yet — please load one first.`, 4000, 20, '⚠️');
+                            if(dot) dot.classList.replace('state-executing', 'state-completed');
+                            markNoteCompleted(noteElement);
+                            if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'analyst');
+                        }, 1000);
+                        return;
+                    }
+                    fetch(`/api/popular-artwork/${jobId}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.error) {
+                                showAgentConsoleMessage(`color-${roleShort}`, `Analyst: ${data.error}`, 4000, 20, '⚠️');
+                                if(dot) dot.classList.replace('state-executing', 'state-completed');
+                                markNoteCompleted(noteElement);
+                                if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'analyst');
+                                return;
+                            }
+                            const art   = data.artwork;
+                            const stats = data.stats;
+                            showAgentConsoleMessage(`color-${roleShort}`,
+                                `Analyst: ${stats.pageviews.toLocaleString()} views · ${stats.visitors.toLocaleString()} visitors · ${stats.total_paintings} paintings. Recommending "${art.title}" as banner.`,
+                                6000, 20, '💡');
+
+                            // Apply the artwork as banner image only — no layout change
+                            setTimeout(() => {
+                                addBannerImage(art.url);
+                                showAgentConsoleMessage(`color-${roleShort}`, `Analyst: Banner updated to "${art.title}".`, 3000, 20, '✅');
+                            }, 500);
+
+                            setTimeout(() => {
+                                if(dot) dot.classList.replace('state-executing', 'state-completed');
+                                markNoteCompleted(noteElement);
+                                if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'analyst');
+                            }, 1200);
+                            if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'analyst');
+                        })
+                        .catch(err => {
+                            console.error('[Analyst] popular-artwork fetch failed:', err);
+                            showAgentConsoleMessage(`color-${roleShort}`, `Analyst: Could not fetch artwork data.`, 3000, 20, '⚠️');
+                            if(dot) dot.classList.replace('state-executing', 'state-completed');
+                            markNoteCompleted(noteElement);
+                            if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'analyst');
+                        });
+                } else {
+                    // Generic analyst note — just acknowledge
+                    showAgentConsoleMessage(`color-${roleShort}`, `Analyst: Noted. I'll monitor the data and flag insights.`, 3000, 20, '📊');
+                    setTimeout(() => {
+                        if(dot) dot.classList.replace('state-executing', 'state-completed');
+                        markNoteCompleted(noteElement);
+                        if (extra && extra.sessionId) reportAgentDone(extra.sessionId, 'analyst');
+                    }, 1200);
+                }
             } else {
                 // If PM role received a URL, treat as a new exhibition curation request
                 const hasUrl = instructions.includes('http://') || instructions.includes('https://');

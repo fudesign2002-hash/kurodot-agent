@@ -7,38 +7,29 @@ if [ -z "$GEMINI_API_KEY" ]; then
   exit 1
 fi
 
-if [ -z "$GCS_BUCKET_NAME" ]; then
-  echo "WARNING: GCS_BUCKET_NAME not set, using empty string"
-  GCS_BUCKET_NAME=""
-fi
+GCS_BUCKET_NAME="${GCS_BUCKET_NAME:-}"
 
 TOKEN=$($HOME/google-cloud-sdk/bin/gcloud auth print-access-token 2>/dev/null)
 PROJECT="gen-lang-client-0803878197"
 REGION="us-central1"
 SERVICE="kurodot-agent"
-IMAGE="gcr.io/${PROJECT}/kurodot-agent"
+IMAGE="gcr.io/${PROJECT}/kurodot-agent@sha256:c91c02907149986a84339db8e8a45b87223d15015a5c0a36430eec41c03de155"
 API="https://run.googleapis.com/v2/projects/${PROJECT}/locations/${REGION}/services/${SERVICE}"
 
 echo "Patching service with image + env vars..."
 
-PATCH=$(python3 - <<EOF
-import json
-patch = {
+# Use printf to build JSON to avoid heredoc quoting issues
+PATCH=$(printf '{
   "template": {
-    "containers": [
-      {
-        "image": "${IMAGE}",
-        "env": [
-          {"name": "GEMINI_API_KEY", "value": "${GEMINI_API_KEY}"},
-          {"name": "GCS_BUCKET_NAME", "value": "${GCS_BUCKET_NAME}"}
-        ]
-      }
-    ]
+    "containers": [{
+      "image": "%s",
+      "env": [
+        {"name": "GEMINI_API_KEY", "value": "%s"},
+        {"name": "GCS_BUCKET_NAME", "value": "%s"}
+      ]
+    }]
   }
-}
-print(json.dumps(patch))
-EOF
-)
+}' "$IMAGE" "$GEMINI_API_KEY" "$GCS_BUCKET_NAME")
 
 RESULT=$(curl -s -X PATCH \
   -H "Authorization: Bearer $TOKEN" \
@@ -49,12 +40,11 @@ RESULT=$(curl -s -X PATCH \
 echo "$RESULT" | python3 -c "
 import json,sys
 r=json.load(sys.stdin)
-name=r.get('name','')
 err=r.get('error',{})
 if err:
   print('ERROR:', err)
 else:
-  print('OK - operation:', name)
+  print('OK - operation started')
 "
 
 echo ""

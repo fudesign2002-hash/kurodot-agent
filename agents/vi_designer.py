@@ -112,6 +112,64 @@ class VIDesignerAgent:
         print(f"[{self.agent_name}] Visual style generated and safely appended to context state.")
         return data_state
 
+    def analyze_style(self, image_base64: str, mime_type: str = "image/png") -> dict:
+        """Analyzes the visual style of a reference image using Gemini Vision."""
+        import base64, json
+        if not self.client:
+            raise RuntimeError("GEMINI_API_KEY not configured")
+
+        prompt = """You are a professional visual designer. Analyze the visual style of this image and return a JSON object describing the design language so it can be replicated on an art gallery banner.
+
+Return ONLY valid JSON with these exact keys:
+{
+  \"color_scheme\": \"dark\" | \"light\" | \"vibrant\" | \"monochrome\" | \"pastel\" | \"gradient\",
+  \"primary_color\": \"#rrggbb\",
+  \"secondary_color\": \"#rrggbb\",
+  \"accent_color\": \"#rrggbb\",
+  \"background_style\": \"solid\" | \"gradient\" | \"full_image\" | \"textured\",
+  \"typography_style\": \"serif\" | \"sans-serif\" | \"display\" | \"minimal\" | \"slab\" | \"monospace\",
+  \"layout\": \"centered\" | \"left-aligned\" | \"right-aligned\" | \"split\",
+  \"mood\": \"elegant\" | \"bold\" | \"minimalist\" | \"retro\" | \"futuristic\" | \"organic\" | \"editorial\" | \"dramatic\",
+  \"font_weight\": \"thin\" | \"regular\" | \"bold\" | \"heavy\",
+  \"description\": \"one sentence describing the overall style for the designer agent\",
+  \"image_shape\": \"circle\" | \"rectangle\",
+  \"decorative_elements\": [
+    {
+      \"type\": \"star\" | \"circle\" | \"triangle\" | \"rectangle\" | \"dot-grid\" | \"cross\" | \"burst\" | \"zigzag\" | \"arc\" | \"diamond\",
+      \"color\": \"#rrggbb\",
+      \"opacity\": 0.0-1.0,
+      \"size\": \"small\" | \"medium\" | \"large\",
+      \"placement\": \"corner\" | \"edge\" | \"scattered\"
+    }
+  ]
+}
+
+For decorative_elements: identify 3-6 recurring geometric/vector decorative motifs visible in the image — things like colored star bursts, dot grids, geometric shapes, corner accents, stripes, or pattern fills. These will be rendered as SVG overlays on the banner to recreate the visual feel of the reference.
+
+Important rules:
+- If the background has two or more colors blending (gradient), set background_style to \"gradient\" and color_scheme to \"vibrant\" or \"gradient\"
+- Set primary_color to the dominant background color, secondary_color to the second gradient color, accent_color to the most prominent text/highlight color
+- If the layout has text on the left side and imagery on the right, use \"left-aligned\"
+- If the layout has centered text stacked vertically, use \"centered\"
+- Set image_shape to "circle" if the reference uses a circular crop or circular frame for its main photo; otherwise use "rectangle"
+- Prioritize capturing the most distinctive visual trait in mood"""
+
+        image_bytes = base64.b64decode(image_base64)
+        response = self.client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                prompt
+            ]
+        )
+        raw = response.text.strip()
+        print(f"[{self.agent_name}] Style analysis response: {raw[:120]}...")
+        if "```" in raw:
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        return json.loads(raw.strip())
+
     def generate_interleaved_story(self, exhibition_info: str) -> dict:
         """
         Creative Storyteller: Generates a mixed curatorial narrative + key visual
@@ -130,7 +188,7 @@ class VIDesignerAgent:
 
         try:
             response = self.client.models.generate_content(
-                model="gemini-2.0-flash-preview-image-generation",
+                model="gemini-2.5-flash-image",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_modalities=["TEXT", "IMAGE"]
@@ -141,7 +199,12 @@ class VIDesignerAgent:
                 if hasattr(part, "text") and part.text:
                     result["text_parts"].append(part.text)
                 elif hasattr(part, "inline_data") and part.inline_data:
-                    result["image_data"].append(part.inline_data.data)  # base64 PNG
+                    raw = part.inline_data.data
+                    # SDK may return bytes or already-base64 str
+                    if isinstance(raw, bytes):
+                        import base64
+                        raw = base64.b64encode(raw).decode("utf-8")
+                    result["image_data"].append(raw)
             hub.emit_log(
                 "vi-designer",
                 f"Interleaved story generated: {len(result['text_parts'])} text + {len(result['image_data'])} image parts.",

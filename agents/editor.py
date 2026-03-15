@@ -14,7 +14,7 @@ class EditorAgent:
     """
     def __init__(self):
         self.agent_name = settings.AGENT_ROLES["editor"]
-        self.personality_emoji = "✍️" # Editor's primary emoji for writing
+        self.personality_emoji = "✏️" # Editor's primary emoji for writing
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key) if api_key else None
 
@@ -55,7 +55,7 @@ class EditorAgent:
         if self.client:
             try:
                 response = self.client.models.generate_content(
-                    model="gemini-1.5-pro",
+                    model="gemini-2.5-flash",
                     contents=prompt
                 )
                 raw = response.text or ""
@@ -67,6 +67,46 @@ class EditorAgent:
             "zh_tw": f"這是一個展現 {artist_name} 藝術遠見的沈浸式展覽，探索人與機器的介面...",
             "en_us": f"This is an immersive exhibition showcasing the artistic vision of {artist_name}, exploring the interface between humans and machines...",
         }
+
+    def translate_fields(self, fields: dict, target_language: str, artist_name: str = "") -> dict:
+        """Translates banner text fields to the target language, protecting the artist name."""
+        import json
+        if not self.client:
+            raise RuntimeError("GEMINI_API_KEY not configured")
+
+        PLACEHOLDER = "__ARTIST_NAME__"
+        artist = artist_name.strip() if artist_name else ""
+
+        masked_fields = {k: v.replace(artist, PLACEHOLDER) if artist else v for k, v in fields.items()}
+        fields_json = "\n".join(f'  "{k}": "{v}"' for k, v in masked_fields.items())
+        artist_clause = (
+            f' The token {PLACEHOLDER} is a protected placeholder — copy it verbatim into the output, never translate or remove it.'
+            if artist else ''
+        )
+        prompt = (
+            f"Translate the following banner text fields into {target_language}."
+            f"{artist_clause}"
+            " Return ONLY a valid JSON object with the same keys and translated values."
+            " Do NOT translate proper nouns, exhibition titles that are brand names, or dates."
+            " Keep translations concise and suitable for a professional art gallery banner.\n\n"
+            f"{{\n{fields_json}\n}}"
+        )
+
+        response = self.client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+        raw = response.text.strip()
+        print(f"[{self.agent_name}] Raw translation response: {raw[:120]}...")
+        if "```" in raw:
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        translated = json.loads(raw.strip())
+
+        if artist:
+            for k in translated:
+                if isinstance(translated[k], str):
+                    translated[k] = translated[k].replace(PLACEHOLDER, artist)
+
+        return translated
 
     def process_task(self, instruction: str, data_state: dict):
         """Processes the Editorial task by locking down other contexts."""

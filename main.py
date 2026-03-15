@@ -45,6 +45,147 @@ async def interleaved_story(req: InterleavedRequest):
     result = designer.generate_interleaved_story(req.exhibition_info)
     return JSONResponse(content=result)
 
+# ── Translation endpoint ─────────────────────────────────────────────────────
+class TranslateRequest(BaseModel):
+    fields: Dict[str, str]   # {"headline": "...", "subtext": "...", ...}
+    target_language: str     # e.g. "Traditional Chinese", "Japanese", "English"
+    artist_name: str = ""   # Must NEVER be translated — passed in for extra protection
+
+@app.post("/api/translate")
+async def translate_fields(req: TranslateRequest):
+    """Delegates to EditorAgent.translate_fields()"""
+    try:
+        from agents.editor import EditorAgent
+        result = EditorAgent().translate_fields(req.fields, req.target_language, req.artist_name)
+        return JSONResponse(content=result)
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] /api/translate failed: {traceback.format_exc()}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+# ── Style Analysis endpoint ──────────────────────────────────────────────────
+class AnalyzeStyleRequest(BaseModel):
+    image_base64: str   # base64-encoded image data (without data URI prefix)
+    mime_type: str = "image/png"
+
+@app.post("/api/analyze-style")
+async def analyze_style(req: AnalyzeStyleRequest):
+    """Delegates to VIDesignerAgent.analyze_style()"""
+    try:
+        from agents.vi_designer import VIDesignerAgent
+        result = VIDesignerAgent().analyze_style(req.image_base64, req.mime_type)
+        return JSONResponse(content=result)
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] /api/analyze-style failed: {traceback.format_exc()}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+# ── Popular Artwork endpoint ─────────────────────────────────────────────────
+@app.get("/api/popular-artwork/{job_id}")
+async def get_popular_artwork(job_id: str):
+    """
+    Reads cached exhibition data and returns the most prominent painting artwork
+    along with exhibition-level stats (pageviews, visitors).
+    Ranking: artworks with longer descriptions first, then by position (curated order).
+    """
+    import os, json as _json
+    # Resolve exhibition slug: job_id might be a UUID — look up the slug from in-memory jobs
+    ex_id = jobs.get(job_id, {}).get("ex_id") or job_id
+    data_path = f"temp/data/{ex_id}.json"
+    if not os.path.exists(data_path):
+        return JSONResponse(content={"error": "No cached data found for this exhibition"}, status_code=404)
+    with open(data_path) as f:
+        data = _json.load(f)
+
+    stats = data.get("stats", {})
+    artworks = data.get("artworks", [])
+
+    IMAGE_EXTS = ('.webp', '.png', '.jpg', '.jpeg', '.gif')
+
+    def is_image_url(url: str) -> bool:
+        # Check before the query-string portion
+        path = url.split("?")[0].lower()
+        return path.endswith(IMAGE_EXTS) or any(ext in path for ext in IMAGE_EXTS)
+
+    # Prefer paintings; fall back to any artwork with an image URL
+    paintings = [a for a in artworks if a.get("type") == "painting" and is_image_url(a.get("artworkFile", ""))]
+    if not paintings:
+        paintings = [a for a in artworks if is_image_url(a.get("artworkFile", ""))]
+    if not paintings:
+        return JSONResponse(content={"error": "No painting artworks found in this exhibition"})
+
+    # Score: longer description = more curated/notable, then title length as tiebreaker
+    def score(a):
+        return len(a.get("description", "")) * 3 + len(a.get("title", ""))
+
+    ranked = sorted(paintings, key=score, reverse=True)
+    top = ranked[0]
+
+    return JSONResponse(content={
+        "artwork": {
+            "id": top.get("id"),
+            "title": top.get("title"),
+            "artist": top.get("artist"),
+            "type": top.get("type"),
+            "medium": top.get("medium", ""),
+            "date": top.get("date", ""),
+            "url": top.get("artworkFile"),
+        },
+        "stats": {
+            "pageviews": stats.get("pageviews", 0),
+            "visitors": stats.get("visitors", 0),
+            "visits": stats.get("visits", 0),
+            "total_paintings": len(paintings),
+            "total_artworks": len(artworks),
+        },
+        "all_paintings": [
+            {"id": a.get("id"), "title": a.get("title"), "url": a.get("artworkFile")}
+            for a in ranked
+        ]
+    })
+
+# ── Task Classification endpoint ────────────────────────────────────────────
+class ClassifyTaskRequest(BaseModel):
+    text: str
+
+@app.post("/api/classify-task")
+async def classify_task(req: ClassifyTaskRequest):
+    """
+    Uses Gemini to classify a free-form user instruction into the appropriate
+    agent: designer, editor, tech, or analyst.
+    Returns: { agent, confidence, reasoning }
+    """
+    try:
+        import os, json as _json, re as _re
+        from google import genai
+        api_key = os.environ.get("GEMINI_API_KEY", "")
+        client = genai.Client(api_key=api_key)
+
+        prompt = f"""You are the PM (Project Manager) of an AI art curation system.
+Classify the user's instruction to exactly one of these agents:
+- designer: Visual tasks — layout, colors, typography, font size, text sizing, background, image composition, aspect ratios, visual style, dark/light theme
+- editor: Text/content tasks — shorten text, translate, localize, rewrite, change language, adjust wording, copy editing, narrative
+- tech: Export/technical tasks — export image, copy to clipboard, download, save as PNG/JPG
+- analyst: Data/artwork tasks — show popular artworks, trending paintings, view statistics, artwork recommendations, banner image from data
+
+Return ONLY valid JSON with no markdown fences:
+{{"agent": "<agent>", "confidence": <0.0-1.0>, "reasoning": "<one sentence in same language as input>"}}
+
+User instruction: {req.text}"""
+
+        response = client.models.generate_content(model="gemini-2.5-pro", contents=prompt)
+        raw = response.text.strip()
+        json_match = _re.search(r'\{.*\}', raw, _re.DOTALL)
+        if json_match:
+            result = _json.loads(json_match.group())
+            return JSONResponse(content=result)
+        return JSONResponse(content={"error": "Could not parse Gemini response", "raw": raw}, status_code=500)
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] /api/classify-task failed: {traceback.format_exc()}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
 @app.post("/api/start_curation")
 async def start_curation(req: JobRequest, background_tasks: BackgroundTasks):
     job_id = str(uuid.uuid4())
@@ -206,6 +347,9 @@ async def run_curation_workflow(job_id: str, url: str, exhibition_data: dict = N
             log(f"PM: Could not extract specific ID from prompt. Using default: {ex_id}")
         else:
             log(f"PM: Analyzing curation source... Found Exhibition ID: {ex_id}")
+
+        # Store the slug so /api/popular-artwork can find the right data file
+        job["ex_id"] = ex_id
 
         # 3. Data Retrieval Logic (Chain: Pre-fetched -> API -> Local JSON)
         ex_data = None
