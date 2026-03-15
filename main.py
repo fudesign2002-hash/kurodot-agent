@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import asyncio
 from typing import Dict, Any, List
+import importlib
 import settings
 
 app = FastAPI()
@@ -26,7 +27,8 @@ async def get_settings():
     return {
         "testing_mode": settings.TESTING_MODE,
         "test_url": settings.TEST_URL,
-        "test_instruction": settings.TEST_INSTRUCTION
+        "test_instruction": settings.TEST_INSTRUCTION,
+        "show_background": getattr(settings, 'SHOW_BACKGROUND', 1)
     }
 
 # ── Creative Storyteller: Interleaved text + image endpoint ─────────────────
@@ -536,9 +538,16 @@ async def check_updates():
 @app.get("/")
 def read_root():
     global LAST_MODIFIED_TIME
+    importlib.reload(settings)
     LAST_MODIFIED_TIME = os.path.getmtime("opencanvas.html")
     with open("opencanvas.html", "r", encoding="utf-8") as f:
         content = f.read()
+    if not getattr(settings, 'SHOW_BACKGROUND', 1):
+        content = content.replace(
+            '</head>',
+            '<style>body,html{background-image:none!important;background-color:#ffffff!important;}</style></head>',
+            1
+        )
     return HTMLResponse(content, headers={
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",

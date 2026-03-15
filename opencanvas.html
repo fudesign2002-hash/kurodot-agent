@@ -800,6 +800,17 @@
         const canvasBoard = document.getElementById('canvas-board');
         const agentStatusButtons = document.querySelectorAll('.agent-status');
 
+        // Console message queue — ensures each message fully types before next appears
+        const _consoleQueue = [];
+        let _consoleTyping = false;
+
+        function _processConsoleQueue() {
+            if (_consoleTyping || _consoleQueue.length === 0) return;
+            _consoleTyping = true;
+            const next = _consoleQueue.shift();
+            _displayConsoleMessage(next.dotColorClass, next.text, next.duration, next.speed, next.emoji);
+        }
+
         // Allow dragging for notes
         function makeDraggable(element) {
             let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
@@ -1259,10 +1270,14 @@
         });
 
         function showAgentConsoleMessage(dotColorClass, text, duration = 4000, speed = 30, emoji = '') {
-            if (!text || text.trim() === "" || text.trim() === ":") return; // 防呆：不顯示空白或只有冒號的訊息
+            if (!text || text.trim() === "" || text.trim() === ":") return;
+            _consoleQueue.push({ dotColorClass, text, duration, speed, emoji });
+            _processConsoleQueue();
+        }
 
+        function _displayConsoleMessage(dotColorClass, text, duration = 4000, speed = 30, emoji = '') {
             const consoleArea = document.getElementById('agent-console');
-            // Remove ALL existing messages so only one is ever shown at a time
+            // Remove any leftover message from a previous cycle
             consoleArea.querySelectorAll('.console-message').forEach(m => {
                 m.classList.replace('show', 'hide');
                 setTimeout(() => { if (m.parentNode) m.remove(); }, 300);
@@ -1447,6 +1462,8 @@
                     setTimeout(() => {
                         msgBox.classList.replace('show', 'hide');
                         setTimeout(() => { if(msgBox.parentNode) msgBox.remove(); }, 600);
+                        _consoleTyping = false;
+                        _processConsoleQueue();
                     }, duration);
                 }
             }
@@ -1651,9 +1668,7 @@
             const lowerRawText = rawText.toLowerCase();
             if (lowerRawText.includes('kurodot.io') || lowerRawText.includes('fu-design.com')) {
                 const isKurodot = lowerRawText.includes('kurodot.io');
-                const idMatch = isKurodot 
-                    ? rawText.match(/id=([a-zA-Z0-9_-]+)/) || rawText.match(/ex_([a-zA-Z0-9_-]+)/) || rawText.match(/exhibition\/([a-zA-Z0-9_-]+)/)
-                    : rawText.match(/id=([a-zA-Z0-9_-]+)/);
+                const idMatch = rawText.match(/id=([a-zA-Z0-9_-]+)/) || rawText.match(/ex_([a-zA-Z0-9_-]+)/) || rawText.match(/exhibition\/([a-zA-Z0-9_-]+)/);
 
                 if (idMatch) {
                     try {
@@ -4243,6 +4258,12 @@
                 const response = await fetch('/api/settings');
                 const settings = await response.json();
                 
+                // Apply background setting
+                if (settings.show_background === 0) {
+                    document.body.style.backgroundImage = 'none';
+                    document.body.style.backgroundColor = '#ffffff';
+                }
+
                 if (settings.testing_mode === 1) {
                     console.log("%c[TEST MODE ACTIVE]", "color: #f1a456; font-weight: bold;", settings);
                     
