@@ -34,11 +34,35 @@ jobs:
           gcloud auth configure-docker --quiet
 
       - name: Build & push Docker image
+        shell: bash
         run: |
-          gcloud builds submit \
+          BUILD_ID=$(gcloud builds submit \
             --project ${{ secrets.GCP_PROJECT_ID }} \
             --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }} \
-            --timeout=600s
+            --timeout=600s \
+            --async \
+            --format='value(metadata.build.id)')
+
+          echo "Submitted build: $BUILD_ID"
+
+          while true; do
+            STATUS=$(gcloud builds describe "$BUILD_ID" \
+              --project ${{ secrets.GCP_PROJECT_ID }} \
+              --format='value(status)')
+
+            echo "Cloud Build status: $STATUS"
+
+            if [ "$STATUS" = "SUCCESS" ]; then
+              break
+            fi
+
+            if [ "$STATUS" = "FAILURE" ] || [ "$STATUS" = "INTERNAL_ERROR" ] || [ "$STATUS" = "TIMEOUT" ] || [ "$STATUS" = "CANCELLED" ] || [ "$STATUS" = "EXPIRED" ]; then
+              echo "Build failed with status: $STATUS"
+              exit 1
+            fi
+
+            sleep 10
+          done
 
       - name: Deploy to Cloud Run
         run: |
