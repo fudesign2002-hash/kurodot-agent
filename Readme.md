@@ -6,6 +6,8 @@ Built for the **Gemini Live Agent Challenge** · Category: **Creative Storytelle
 
 > **Live demo:** https://kurodot-agent-1063202705342.us-central1.run.app
 
+> 🏆 **Bonus — Infrastructure as Code:** All GCP resources (Cloud Run, IAM, GCS) are fully defined in Terraform (`infra/`). A GitHub Actions workflow (`.github/workflows/deploy.yml`) automates build → push → deploy on every push to `main`. See [Infrastructure as Code](#️-infrastructure-as-code-terraform) for details.
+
 ---
 
 ## 🤖 Agent Roster
@@ -154,7 +156,18 @@ CLOUDSDK_PYTHON=/usr/local/bin/python3.11 gcloud run deploy kurodot-agent \
 
 ## 🏗️ Infrastructure as Code (Terraform)
 
-All GCP resources — Cloud Run service, IAM policy, and GCS bucket — are fully defined as Terraform configuration in the `infra/` directory.
+> All GCP resources are **100% code-defined** — no manual Console clicks required. Running `terraform apply` provisions or updates the entire stack from scratch.
+
+### What Terraform manages
+
+| Resource | Terraform ID | Purpose |
+|---|---|---|
+| **Cloud Run v2 Service** | `google_cloud_run_v2_service.kurodot_agent` | Serverless backend, auto-scaled 0 → `max_instances` |
+| **Cloud Run IAM** | `google_cloud_run_v2_service_iam_member.public_invoker` | `allUsers` → `roles/run.invoker` (public access) |
+| **GCS Bucket** | `google_storage_bucket.exports` | Tech Producer canvas export uploads |
+| **GCS IAM** | `google_storage_bucket_iam_member.public_read` | `allUsers` → `roles/storage.objectViewer` (public downloads) |
+
+### Files
 
 ```
 infra/
@@ -196,6 +209,30 @@ Outputs:
 ```
 
 > **Note:** `terraform.tfvars` contains secrets — it is listed in `.gitignore` and must never be committed.
+
+---
+
+## 🤖 Automated Deployment — GitHub Actions
+
+A CI/CD pipeline (`.github/workflows/deploy.yml`) runs on every push to `main`:
+
+```
+push to main
+  │
+  ├─ 1. Checkout code
+  ├─ 2. Authenticate to GCP  (Workload Identity / service account key)
+  ├─ 3. gcloud builds submit  (Cloud Build → Container Registry)
+  └─ 4. gcloud run deploy     (Cloud Run — zero-downtime rolling update)
+```
+
+### One-time setup (GitHub Secrets)
+
+| Secret | Value |
+|---|---|
+| `GCP_PROJECT_ID` | Your GCP project ID |
+| `GCP_SA_KEY` | Base64-encoded service account JSON key with `roles/run.admin`, `roles/storage.admin`, `roles/cloudbuild.builds.editor` |
+
+After adding the secrets, every `git push origin main` triggers a full redeploy automatically.
 
 ---
 
