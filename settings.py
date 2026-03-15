@@ -11,9 +11,6 @@ TEST_INSTRUCTION = "Create a 3:2 banner from this exhibition"
 # Set SHOW_BACKGROUND = 0 for a clean white background (good for screen recordings)
 SHOW_BACKGROUND = 1
 
-# Vercel Automation Bypass Secret
-VERCEL_BYPASS_TOKEN = "kkfOVYrg2zWFGANE7QgSqWFii9R3bUEF"
-
 # Agent Constants
 AGENT_ROLES = {
     "pm": "Project Manager",

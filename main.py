@@ -92,11 +92,17 @@ async def get_popular_artwork(job_id: str):
     """
     import os, json as _json
     # Resolve exhibition slug: job_id might be a UUID — look up the slug from in-memory jobs
-    ex_id = jobs.get(job_id, {}).get("ex_id") or job_id
+    # The 'ex_id' is assigned in run_curation_workflow
+    job = jobs.get(job_id, {})
+    ex_id = job.get("ex_id") or job_id
+    
     data_path = f"temp/data/{ex_id}.json"
+    
     if not os.path.exists(data_path):
-        return JSONResponse(content={"error": "No cached data found for this exhibition"}, status_code=404)
-    with open(data_path) as f:
+        # Fail gracefully if still not found
+        return JSONResponse(content={"error": f"No cached data found for exhibition: {ex_id}"}, status_code=404)
+        
+    with open(data_path, "r", encoding="utf-8") as f:
         data = _json.load(f)
 
     stats = data.get("stats", {})
@@ -378,9 +384,6 @@ async def run_curation_workflow(job_id: str, url: str, exhibition_data: dict = N
                     "Referer": "https://app.kurodot.io/" if not is_fu else "https://www.fu-design.com/"
                 }
                 
-                if hasattr(settings, 'VERCEL_BYPASS_TOKEN') and settings.VERCEL_BYPASS_TOKEN:
-                    headers["x-vercel-protection-bypass"] = settings.VERCEL_BYPASS_TOKEN
-                
                 log(f"PM: Server attempting fetch from: {api_url}")
                 resp = requests.get(api_url, headers=headers, timeout=8)
                 
@@ -409,6 +412,15 @@ async def run_curation_workflow(job_id: str, url: str, exhibition_data: dict = N
                     log(f"PM: Local JSON fallback error: {str(e)}")
             else:
                 log(f"PM: No local file found at {local_path}")
+
+        # Always ensure the data is cached in temp/data for late-arriving agents (like Analyst)
+        if api_payload and ex_id:
+            os.makedirs("temp/data", exist_ok=True)
+            cache_path = f"temp/data/{ex_id}.json"
+            if not os.path.exists(cache_path):
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    json.dump(api_payload, f, ensure_ascii=False, indent=2)
+                log(f"PM: Cached exhibition data to {cache_path}")
 
         # 4. Standardized Data Mapping
         if ex_data and (ex_data.get("title") or ex_data.get("ex_title")):

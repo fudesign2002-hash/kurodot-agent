@@ -284,16 +284,18 @@
         }
 
         .note-footer > .return-symbol {
-            margin-left: auto;
+            margin-left: 2px;
         }
+        .note-hint {
             font-size: 10px;
             opacity: 0.6;
             text-transform: none;
             font-weight: 400;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 2px; /* 縮小文字與符號間距 */
             text-align: right;
+            margin-left: auto;
         }
 
         .note-hint .return-symbol,
@@ -303,28 +305,29 @@
             justify-content: center;
             width: 20px;
             height: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: transparent;
+            border: none;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 14px;
             line-height: 1;
-            margin-left: 2px;
-            box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+            margin-left: 0;
+            box-shadow: none;
             cursor: pointer;
             transition: all 0.2s;
             pointer-events: auto;
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .note-hint .return-symbol:hover,
         .note-footer > .return-symbol:hover {
-            background: rgba(255, 255, 255, 0.4);
-            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.1);
         }
 
         .note-hint .return-symbol:active,
         .note-footer > .return-symbol:active {
             background: rgba(255, 255, 255, 0.1);
-            transform: translateY(0);
+            transform: scale(0.95);
         }
 
         @keyframes noteSpinner {
@@ -333,39 +336,40 @@
         .return-symbol.loading {
             cursor: default !important;
             pointer-events: none;
-            background: rgba(255,255,255,0.08) !important;
-            border-color: rgba(255,255,255,0.2) !important;
+            background: transparent !important;
+            border: none !important;
             font-size: 0 !important;
+            box-shadow: none !important;
         }
         .return-symbol.loading::after {
             content: '';
             display: block;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border: 2px solid rgba(255,255,255,0.25);
             border-top-color: rgba(255,255,255,0.85);
             border-radius: 50%;
             animation: noteSpinner 0.6s linear infinite;
         }
         .light-theme .return-symbol.loading {
-            background: rgba(0,0,0,0.04) !important;
-            border-color: rgba(0,0,0,0.15) !important;
+            background: transparent !important;
+            border: none !important;
         }
         .light-theme .return-symbol.loading::after {
-            border-color: rgba(0,0,0,0.15);
-            border-top-color: rgba(0,0,0,0.6);
+            border-color: rgba(0,0,0,0.1);
+            border-top-color: rgba(0,0,0,0.5);
         }
 
         .light-theme .note-hint .return-symbol,
         .light-theme .note-footer > .return-symbol {
-            background: rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(0, 0, 0, 0.2);
-            color: rgba(0, 0, 0, 0.6);
+            background: transparent;
+            border: none;
+            color: rgba(0, 0, 0, 0.5);
         }
 
         .light-theme .note-hint .return-symbol:hover,
         .light-theme .note-footer > .return-symbol:hover {
-            background: rgba(0, 0, 0, 0.1);
+            background: rgba(0, 0, 0, 0.05);
         }
 
         /* 讓空的便利貼有漂亮的 placeholder 提示文字 */
@@ -505,13 +509,15 @@
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            flex-direction: column;
             align-items: center;
+            justify-content: center;
             z-index: 21000;
             pointer-events: none;
+            width: 100%;
         }
 
         .console-message {
+            position: absolute;
             background: rgba(255, 255, 255, 0.92);
             backdrop-filter: blur(10px);
             padding: 10px 22px;
@@ -524,25 +530,25 @@
             color: #444; 
             font-weight: 500;
             opacity: 0;
-            transform: translateY(-20px); /* 從上方彈入 */
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateY(-20px) scale(0.95); /* 從中心彈入 */
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             pointer-events: auto;
             border: 1px solid rgba(255, 255, 255, 0.5);
             /* --- LIMIT LOG UI --- */
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 600px; /* 限制最大寬度以防字太長 */
+            max-width: 600px; 
         }
 
         .console-message.show {
             opacity: 1;
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
 
         .console-message.hide {
             opacity: 0;
-            transform: translateY(-15px) scale(0.98);
+            transform: translateY(10px) scale(0.95);
         }
 
         /* --- Agent Personalities --- */
@@ -702,7 +708,114 @@
             animation: tech-steady 2.5s ease-in-out infinite; 
         }
 
-        /* Removed .console-dot styles */
+        /* --- Info Button & Popup --- */
+        .info-button {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 30000;
+            transition: all 0.2s;
+            color: #555;
+        }
+        .info-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            color: #000;
+        }
+
+        .info-popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.2);
+            backdrop-filter: blur(4px);
+            z-index: 31000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .info-popup-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+        .info-popup {
+            background: white;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            border-radius: 24px;
+            position: relative;
+            padding: 32px;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .info-popup-overlay.show .info-popup {
+            transform: scale(1);
+        }
+        .info-popup-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.2s;
+        }
+        .info-popup-close:hover {
+            color: #333;
+        }
+        .info-content h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 800;
+        }
+        .info-section {
+            margin-bottom: 24px;
+        }
+        .info-section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .info-commands {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 13px;
+            color: #444;
+            line-height: 1.6;
+        }
+        .info-commands code {
+            display: block;
+            background: #eee;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin: 4px 0 8px 0;
+            font-family: inherit;
+            word-break: break-all;
+        }
+
+        /* --- Global Animations --- */
 
         /* Agent name typography */
         .console-agent-name {
@@ -762,6 +875,86 @@
     </style>
 </head>
 <body>
+    <!-- Info Button & Popup -->
+    <div class="info-button" onclick="toggleInfoPopup(true)">
+        <i data-lucide="info" size="20"></i>
+    </div>
+
+    <div id="info-overlay" class="info-popup-overlay" onclick="toggleInfoPopup(false)">
+        <div class="info-popup" onclick="event.stopPropagation()">
+            <div class="info-popup-close" onclick="toggleInfoPopup(false)">
+                <i data-lucide="x" size="24"></i>
+            </div>
+            <div class="info-content">
+                <h3>Kurodot AI Commands</h3>
+                
+                <div class="info-section">
+                    <div class="info-section-header" style="color: #666;">
+                        <i data-lucide="sticky-note" size="16"></i> White Note (Default)
+                    </div>
+                    <div class="info-commands">
+                        • <b>Double click</b> anywhere to create a new note.<br>
+                        • Create a 3:2 banner from this exhibition:
+                        <code>https://www.fu-design.com/exhibition/bauhaus-blueprint-qevdv</code>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-section-header" style="color: #f1a456;">
+                        <i data-lucide="user" size="16"></i> Project Manager
+                    </div>
+                    <div class="info-commands">
+                        Swap content / Change to this content:
+                        <code>https://www.fu-design.com/exhibition/r1KQ3Cc1OARIk8zObUJr</code>
+                        New Exhibition:
+                        <code>https://www.fu-design.com/exhibition/deep-sea-vnpkc</code>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-section-header" style="color: #ce538a;">
+                        <i data-lucide="palette" size="16"></i> VI Designer
+                    </div>
+                    <div class="info-commands">
+                        • Change canvas size to 16:10 / 4:3<br>
+                        • Change design to full background<br>
+                        • Try different style / Refer to this style
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-section-header" style="color: #6bcdcf;">
+                        <i data-lucide="type" size="16"></i> Editor
+                    </div>
+                    <div class="info-commands">
+                        • Translate all text to 中文<br>
+                        • Create a Japanese version<br>
+                        • Create an English version
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-section-header" style="color: #5062c8;">
+                        <i data-lucide="trending-up" size="16"></i> Data Analyst
+                    </div>
+                    <div class="info-commands">
+                        • Show popular painting as banner<br>
+                        • Use Top artwork
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="info-section-header" style="color: #272a3a;">
+                        <i data-lucide="download" size="16"></i> Tech Producer
+                    </div>
+                    <div class="info-commands">
+                        • Export to jpg / png<br>
+                        • Copy design to clipboard
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="canvas-board">
         <!-- 初始無便利貼 -->
@@ -846,40 +1039,48 @@
 
         function getSafePosition(startX, startY) {
             const padding = 20;
+            const topBarHeight = 100; // Leave room for log console
+            const bottomBarHeight = 100; // Leave room for status bar
+            
             const maxX = window.innerWidth - 250 - padding; 
-            const maxY = window.innerHeight - 250 - padding; 
+            const maxY = window.innerHeight - 250 - bottomBarHeight; 
+            
             let x = Math.max(padding, Math.min(startX, maxX));
-            let y = Math.max(padding, Math.min(startY, maxY));
+            let y = Math.max(topBarHeight, Math.min(startY, maxY));
             return { x, y };
         }
 
         // Returns a random position around the perimeter of the banner artboard.
         // Falls back to viewport edges if artboard isn't rendered yet.
         function getPerimeterPosition() {
-            const noteW = 280, noteH = 160, gap = 20;
+            const noteW = 280, noteH = 160, gap = 30;
+            const topSafety = 120; // log line buffer
+            const bottomSafety = 120; // status bar buffer
+            
             const artboard = document.getElementById('banner-artboard');
             let rect = artboard ? artboard.getBoundingClientRect() : {
-                left: window.innerWidth * 0.2, top: window.innerHeight * 0.2,
-                right: window.innerWidth * 0.8, bottom: window.innerHeight * 0.8,
-                width: window.innerWidth * 0.6, height: window.innerHeight * 0.6
+                left: window.innerWidth * 0.25, top: window.innerHeight * 0.3,
+                right: window.innerWidth * 0.75, bottom: window.innerHeight * 0.7,
+                width: window.innerWidth * 0.5, height: window.innerHeight * 0.4
             };
-            // 3 zones: top, right, left — avoid bottom so notes don't get cut off
+            
+            // 3 zones: top-ish, right, left — avoid bottom so notes don't get cut off
             const zone = Math.floor(Math.random() * 3);
             let x, y;
-            if (zone === 0) { // top strip
+            if (zone === 0) { // upper zone (below log console)
                 x = rect.left + Math.random() * Math.max(rect.width - noteW, 0);
-                y = rect.top - noteH - gap - Math.random() * 40;
-            } else if (zone === 1) { // right strip
-                x = rect.right + gap + Math.random() * 40;
+                y = Math.max(topSafety, rect.top - noteH - gap - Math.random() * 20);
+            } else if (zone === 1) { // right side
+                x = rect.right + gap + Math.random() * 20;
                 y = rect.top + Math.random() * Math.max(rect.height - noteH, 0);
-            } else { // left strip
-                x = rect.left - noteW - gap - Math.random() * 40;
+            } else { // left side
+                x = rect.left - noteW - gap - Math.random() * 20;
                 y = rect.top + Math.random() * Math.max(rect.height - noteH, 0);
             }
-            // Clamp to viewport
-            const vpad = 10;
-            x = Math.max(vpad, Math.min(x, window.innerWidth  - noteW - vpad));
-            y = Math.max(vpad, Math.min(y, window.innerHeight - noteH - vpad));
+            
+            // Final Clamp to safe viewport zone
+            x = Math.max(20, Math.min(x, window.innerWidth  - noteW - 20));
+            y = Math.max(topSafety, Math.min(y, window.innerHeight - noteH - bottomSafety));
             return { x, y };
         }
 
@@ -1120,25 +1321,7 @@
             contentDiv.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    
-                    // Hide hint and symbol immediately on Enter
-                    const footer = newNote.querySelector('.note-footer');
-                    const hint = newNote.querySelector('.note-hint');
-                    if (hint) hint.style.opacity = '0';
-                    if (footer) footer.style.justifyContent = 'flex-start';
-
-                    // Switch to loading spinner
-                    const sb = newNote.querySelector('.return-symbol');
-                    if (sb) sb.classList.add('loading');
-                    
-                    this.blur();
-                    
-                    // Trigger completion visualization immediately if user hits Enter
-                    // This creates a better UX than waiting for the blur/backend cycle
-                    const text = this.innerText.trim();
-                    if (text.length > 5) {
-                        console.log("%c[USER]%c Enter pressed. Triggering task.", "color: #2196F3; font-weight:bold;", "color:#333");
-                    }
+                    if (submitBtn) submitBtn.click();
                 }
             });
 
@@ -1147,38 +1330,15 @@
                 const text = this.innerText.trim();
                 console.log(`%c[DEBUG]%c Blur triggered for ${roleName}. Text: "${text}"`, "color: #9e9e9e", "color: #333");
                 
+                // If empty and no image, cleanup
                 if (!text && !newNote.dataset.imageBase64) {
                     newNote.remove();
                     return;
                 }
-
-                // Show loading spinner on the submit button when a task is about to fire
-                const _sb = newNote.querySelector('.return-symbol');
-                if (_sb) _sb.classList.add('loading');
-
-                if (roleName === 'Chief Curator') {
-                    if ((text.length > 3 || newNote.dataset.imageBase64) && !this.dataset.pmTriggered) {
-                        this.dataset.pmTriggered = "true";
-                        // If image is attached, auto-route to Designer for style analysis
-                        if (newNote.dataset.imageBase64) {
-                            processTaskWithImage(text || 'Apply this style', newNote);
-                        } else {
-                            processTask(text, newNote);
-                        }
-                    }
-                } else {
-                    console.log(`%c[DEBUG]%c Revision check for ${roleName}. Already triggered: ${this.dataset.revisionTriggered}`);
-                    if (!this.dataset.revisionTriggered || this.dataset.lastText !== text) {
-                        this.dataset.revisionTriggered = "true";
-                        this.dataset.lastText = text;
-                        console.log(`%c[DEBUG]%c Calling triggerRevision for ${roleName}`);
-                        if (newNote.dataset.imageBase64) {
-                            processTaskWithImage(text || 'Apply this style', newNote);
-                        } else {
-                            triggerRevision(roleName, text, newNote);
-                        }
-                    }
-                }
+                
+                // We removed the auto-submit on blur as requested.
+                // User must press Enter or click the symbol to submit.
+                console.log(`%c[DEBUG]%c Note blurred. Pending manual submission.`);
             });
             
             newNote.querySelector('.delete-btn').addEventListener('click', function() {
@@ -1398,23 +1558,23 @@
             switch (agentDisplayName) {
                 case 'PM': 
                     personalityClass = "pm-text-anim"; 
-                    roleSpeed = 15; // Fast & energetic like a cheerleader
+                    roleSpeed = 5; // Ultra-fast
                     break;
                 case 'DESIGNER': 
                     personalityClass = "designer-text-anim"; 
-                    roleSpeed = 45; // FLUID
+                    roleSpeed = 15; // Fluid but fast
                     break;
                 case 'EDITOR': 
                     personalityClass = "editor-text-anim"; 
-                    roleSpeed = 70; // PROFESSIONAL
+                    roleSpeed = 25; // Professional speed
                     break;
                 case 'ANALYST': 
                     personalityClass = "analyst-text-anim blink-cursor"; 
-                    roleSpeed = 35; // FAST - ANALYST SPEED UP
+                    roleSpeed = 12; // Snap speed
                     break;
                 case 'TECH': 
                     personalityClass = "tech-text-anim"; 
-                    roleSpeed = 160; // SLOW SYSTEMATIC
+                    roleSpeed = 18; // Efficient
                     break;
             }
 
@@ -1459,15 +1619,18 @@
                     i++;
                     setTimeout(typeWriter, roleSpeed);
                 } else {
+                    // 打字結束後，立即釋放佇列鎖定，讓下一個 log 可以開始「準備」
+                    // 但訊息框本身還是會停留 duration 所指定的時間
+                    _consoleTyping = false;
+                    _processConsoleQueue();
+
                     setTimeout(() => {
                         msgBox.classList.replace('show', 'hide');
-                        setTimeout(() => { if(msgBox.parentNode) msgBox.remove(); }, 600);
-                        _consoleTyping = false;
-                        _processConsoleQueue();
+                        setTimeout(() => { if(msgBox.parentNode) msgBox.remove(); }, 400);
                     }, duration);
                 }
             }
-            setTimeout(typeWriter, 100);
+            setTimeout(typeWriter, 50);
         }
 
         // ── PM Session Helpers ────────────────────────────────────────────────
@@ -1878,8 +2041,9 @@
                                     }
                                 }
 
-                                // 呼叫控制台顯示，並傳入正確的 Emoji 進行連動冒泡
-                                showAgentConsoleMessage(colorClass, lastLog, 2500, 20, busyEmoji);
+            // 呼叫控制台顯示，並傳入正確的 Emoji 進行連動冒泡
+                                // 加快轉換速度：將原本的停留時間從 2500 縮短至 1800
+                                showAgentConsoleMessage(colorClass, lastLog, 1800, 20, busyEmoji);
                             }
                     }
 
@@ -2141,13 +2305,28 @@
                     canvasBoard.appendChild(newNote);
                     makeDraggable(newNote);
 
-                    // 綁定 Apply 按鈕
-                    newNote.querySelector('.apply-btn').addEventListener('click', async () => {
+                        // 綁定 Apply 按鈕
+                    newNote.querySelector('.apply-btn').addEventListener('click', async (e) => {
+                        const btn = e.currentTarget;
                         const text = newNote.querySelector('.note-content').innerText.trim();
                         
-                        // 立即移除 Apply/Dismiss 按鈕，防止重複點擊
-                        const footer = newNote.querySelector('.note-footer');
-                        if (footer) footer.remove();
+                        // 1. 視覺更新：將按鈕轉為 Loading 狀態
+                        btn.disabled = true;
+                        btn.style.pointerEvents = 'none';
+                        btn.style.width = '60px'; // 固定寬度以容納 spinner
+                        btn.style.height = '24px';
+                        btn.style.display = 'inline-flex';
+                        btn.style.alignItems = 'center';
+                        btn.style.justifyContent = 'center';
+                        
+                        // 清空文字並加入 Spinner
+                        btn.innerHTML = `
+                            <div style="width: 12px; height: 12px; border: 2px solid rgba(255,255,255,0.25); border-top-color: white; border-radius: 50%; animation: noteSpinner 0.6s linear infinite;"></div>
+                        `;
+                        
+                        // 隱藏 Dismiss 按鈕
+                        const dismissBtn = newNote.querySelector('.dismiss-btn');
+                        if (dismissBtn) dismissBtn.style.display = 'none';
                         
                         const recId = newNote.dataset.recommendationId;
                         if (recId && !window._appliedRecommendations.includes(recId)) {
@@ -2162,6 +2341,15 @@
                             pmDot.classList.replace('state-idle', 'state-executing');
                             pmDot.classList.replace('state-completed', 'state-executing');
                         }
+
+                        // 為求同步，我們在任務分配完成後，才讓筆記本消失 (或由後端的 dismiss_ids 邏輯接管)
+                        // 若後端 10 秒內都沒回傳 dismiss，則手動讓它淡出
+                        setTimeout(() => {
+                            if (newNote && newNote.parentNode && !newNote.classList.contains('animate-out')) {
+                                newNote.classList.add('animate-out');
+                                setTimeout(() => newNote.remove(), 600);
+                            }
+                        }, 10000);
 
                         // --- FIX: Route by recId directly to avoid PM restarting full pipeline ---
                         // --- 特殊連動：Analyst 建議被 Apply 後，觸發 Designer 建議 ---
@@ -2284,9 +2472,6 @@
             panel.style.overflow = 'hidden';
             panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)';
             panel.style.zIndex = '5';
-
-            // Initial call to Lucide if icons are in base HTML
-            setTimeout(() => { if(window.lucide) window.lucide.createIcons(); }, 10);
             
             // Animation trigger: Expand from origin (center in this CSS, visually expanding outwards)
             setTimeout(() => {
@@ -4299,6 +4484,20 @@
             }, 2000); // Check every 2 seconds
         }
         startLiveReload();
+
+        // ── Info Popup Helpers ───────────────────────────────────────────────
+        function toggleInfoPopup(show) {
+            const overlay = document.getElementById('info-overlay');
+            if (show) {
+                overlay.classList.add('show');
+                if(window.lucide) window.lucide.createIcons();
+            } else {
+                overlay.classList.remove('show');
+            }
+        }
+
+        // Initial call to Lucide for static icons
+        setTimeout(() => { if(window.lucide) window.lucide.createIcons(); }, 10);
 </script>
 </body>
 </html>

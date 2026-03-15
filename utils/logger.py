@@ -24,6 +24,8 @@ class AgentCollaborationHub:
         self._seen_log_ids: set = set()
         # Maps (role, msg, status) → last emit timestamp for content-based dedup
         self._recent_content: Dict[tuple, float] = {}
+        # Buffer for recommendations that are waiting for PM to finish
+        self._rec_buffer: List[Dict[str, Any]] = []
         self._load_state()
 
     def _load_state(self):
@@ -106,7 +108,35 @@ class AgentCollaborationHub:
         self._save_state()
 
     def register_recommendation(self, agent_id: str, rec_id: str, content: str):
-        """Registers an Analyst recommendation and emits structured logs with ID tracking."""
+        """Buffers Analyst suggestions if a PM session is active; otherwise registers and emits them."""
+        # Use rec_id to prevent duplicates in buffer or state
+        if rec_id in self.state["recommendations"]:
+            return False
+        
+        # Check if there is an active PM session that isn't already celebrated
+        is_pm_session_active = False
+        sessions = self.state.get("pm_sessions", {})
+        for sid, s in sessions.items():
+            if not s.get("celebrated", False):
+                is_pm_session_active = True
+                break
+        
+        # BUFFER MODE: If PM is working, we wait.
+        if is_pm_session_active:
+            # Avoid adding the same rec_id multiple times to the buffer
+            if not any(r['rec_id'] == rec_id for r in self._rec_buffer):
+                logger.info(f"[HUB] Buffering recommendation {rec_id} from {agent_id} until PM session ends.")
+                self._rec_buffer.append({
+                    "agent_id": agent_id,
+                    "rec_id": rec_id,
+                    "content": content
+                })
+            return True
+            
+        # DIRECT MODE: No active session, just register it
+        return self._actually_register_recommendation(agent_id, rec_id, content)
+
+    def _actually_register_recommendation(self, agent_id: str, rec_id: str, content: str):
         if rec_id not in self.state["recommendations"]:
             self.state["recommendations"][rec_id] = {
                 "origin": agent_id,
@@ -285,6 +315,23 @@ class AgentCollaborationHub:
                 log_id=f"pm_celebrate_{session_id}"
             )
             self._save_state()
+            
+            # --- FLUSH BUFFERED RECOMMENDATIONS ---
+            # Now that PM has celebrated, any buffered suggestions from Analysts can pop up.
+            def flush_buffer():
+                import time
+                time.sleep(1.5) # Wait for celebration bubble to clear up slightly
+                while self._rec_buffer:
+                    rec = self._rec_buffer.pop(0)
+                    self._actually_register_recommendation(rec["agent_id"], rec["rec_id"], rec["content"])
+            
+            # Use non-blocking flush if possible, or simple sequence
+            try:
+                import threading
+                threading.Thread(target=flush_buffer, daemon=True).start()
+            except:
+                flush_buffer()
+                
             return True
         self._save_state()
         return False

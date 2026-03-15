@@ -99,7 +99,12 @@ kurodot-agent/
 ├── settings.py              # Agent roles, test config
 ├── requirements.txt
 ├── Dockerfile               # Cloud Run container (Python 3.11-slim)
-├── deploy.sh                # IaC: gcloud builds + run deploy
+├── deploy.sh                # Quick gcloud CLI deploy script
+├── infra/                   # Terraform IaC (bonus: Infrastructure as Code)
+│   ├── main.tf              # Cloud Run service + IAM + GCS bucket
+│   ├── variables.tf         # Input variables
+│   ├── outputs.tf           # Service URL output
+│   └── terraform.tfvars.example
 ├── agents/
 │   ├── project_manager.py   # PM: orchestration, URL parsing, session
 │   ├── vi_designer.py       # VI: layout, interleaved Gemini output
@@ -144,6 +149,53 @@ gcloud config set project YOUR_PROJECT_ID
 CLOUDSDK_PYTHON=/usr/local/bin/python3.11 gcloud run deploy kurodot-agent \
   --source . --region us-central1 --allow-unauthenticated
 ```
+
+---
+
+## 🏗️ Infrastructure as Code (Terraform)
+
+All GCP resources — Cloud Run service, IAM policy, and GCS bucket — are fully defined as Terraform configuration in the `infra/` directory.
+
+```
+infra/
+├── main.tf                    # Cloud Run service + IAM + GCS bucket
+├── variables.tf               # Input variables (project, region, secrets)
+├── outputs.tf                 # Service URL output
+└── terraform.tfvars.example   # Copy → terraform.tfvars, fill in values
+```
+
+### First-time setup
+
+```bash
+# 1. Install Terraform  (https://developer.hashicorp.com/terraform/downloads)
+brew install terraform          # macOS
+
+# 2. Authenticate to GCP
+gcloud auth application-default login
+
+# 3. Configure variables
+cd infra
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your project_id, GEMINI_API_KEY, etc.
+```
+
+### Deploy / update infrastructure
+
+```bash
+cd infra
+terraform init       # download Google provider (~first run)
+terraform plan       # preview changes
+terraform apply      # provision / update resources
+```
+
+After `terraform apply`, the live service URL is printed:
+
+```
+Outputs:
+  service_url = "https://kurodot-agent-<hash>.us-central1.run.app"
+```
+
+> **Note:** `terraform.tfvars` contains secrets — it is listed in `.gitignore` and must never be committed.
 
 ---
 

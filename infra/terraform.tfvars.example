@@ -1,0 +1,9 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# Do NOT commit terraform.tfvars — it contains secrets.
+
+project_id      = "your-gcp-project-id"
+region          = "us-central1"
+service_name    = "kurodot-agent"
+max_instances   = 5
+gemini_api_key  = "YOUR_GEMINI_API_KEY"
+gcs_bucket_name = "your-gcs-bucket-name"
