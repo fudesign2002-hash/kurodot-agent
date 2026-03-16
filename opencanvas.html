@@ -1916,39 +1916,7 @@
                 return;
             }
 
-            // Try browser-side fetch first — bypasses Vercel WAF that blocks server-side requests
             let exhibitionData = null;
-            const lowerRawText = rawText.toLowerCase();
-            if (lowerRawText.includes('kurodot.io') || lowerRawText.includes('fu-design.com')) {
-                const isKurodot = lowerRawText.includes('kurodot.io');
-                const idMatch = rawText.match(/id=([a-zA-Z0-9_-]+)/) || rawText.match(/ex_([a-zA-Z0-9_-]+)/) || rawText.match(/exhibition\/([a-zA-Z0-9_-]+)/);
-
-                if (idMatch) {
-                    try {
-                        const baseUrl = isKurodot ? "https://app.kurodot.io/api/exhibit" : "https://www.fu-design.com/api/exhibit";
-                        showAgentConsoleMessage('color-pm', `PM: Fetching exhibition data directly...`, 2000, 20);
-                        
-                        const apiTarget = `${baseUrl}?id=${idMatch[1]}`;
-                        const apiResp = await fetch(apiTarget);
-                        if (apiResp.ok) {
-                            const data = await apiResp.json();
-                            // Handle potential nested structure
-                            const checkData = data.exhibition || data.ex_title || data.title ? data : null;
-                            if (checkData) {
-                                exhibitionData = data;
-                                console.log('%c[PM]%c Browser-side fetch succeeded.', 'color:#f1a456;font-weight:bold;', 'color:#555');
-                                showAgentConsoleMessage('color-pm', `PM: Data fetched successfully via browser!`, 2000, 20);
-                            }
-                        } else {
-                            console.warn(`[PM] Browser fetch returned status ${apiResp.status}`);
-                        }
-                    } catch(e) {
-                        console.warn('[PM] Browser-side fetch failed (CORS or network):', e);
-                        showAgentConsoleMessage('color-pm', `PM: Browser fetch blocked (CORS). AI will retry...`, 2000, 20);
-                    }
-                }
-            }
-
             try {
                 const response = await fetch('/api/start_curation', {
                     method: 'POST',

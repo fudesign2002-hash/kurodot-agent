@@ -5,5 +5,7 @@ __pycache__/
 .env
 .git/
 server.log
-temp/
+temp/*
+!temp/data/
+!temp/data/*.json
 node_modules/
