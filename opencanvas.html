@@ -798,22 +798,57 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .info-commands {
-            background: #f9f9f9;
-            border-radius: 12px;
-            padding: 12px;
+        .info-list {
+            margin: 4px 0 6px 16px;
+            padding-left: 4px;
             font-size: 13px;
             color: #444;
-            line-height: 1.6;
+            line-height: 1.75;
         }
-        .info-commands code {
-            display: block;
-            background: #eee;
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin: 4px 0 8px 0;
-            font-family: inherit;
+        .cmd-box {
+            position: relative;
+            background: #f0f0f0;
+            border-radius: 8px;
+            padding: 9px 44px 9px 12px;
+            margin: 4px 0;
+            font-size: 13px;
+            color: #222;
             word-break: break-all;
+            cursor: default;
+        }
+        .cmd-box .cmd-label {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 3px;
+            word-break: normal;
+        }
+        .cmd-box .cmd-text {
+            line-height: 1.4;
+        }
+        .cmd-copy {
+            position: absolute;
+            right: 7px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 3px 7px;
+            cursor: pointer;
+            font-size: 11px;
+            color: #555;
+            transition: opacity 0.15s;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .cmd-box:hover .cmd-copy {
+            opacity: 1;
+        }
+        .cmd-copy.copied {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-color: #a5d6a7;
         }
 
         /* --- Global Animations --- */
@@ -889,74 +924,116 @@
             <div class="info-content">
                 <h3>Kurodot AI Commands</h3>
                 
+                <!-- WHITE NOTE -->
                 <div class="info-section">
                     <div class="info-section-header" style="color: #666;">
                         <i data-lucide="sticky-note" size="16"></i> White Note (Default)
                     </div>
-                    <div class="info-commands">
-                        • <b>Double click</b> anywhere to create a new note.<br>
-                        • Create a 3:2 banner from this exhibition:
-                        <code>https://www.fu-design.com/exhibition/bauhaus-blueprint-qevdv</code>
-                        • One-shot — ratio + URL in the same note:
-                        <code>Create a 3:2 banner from https://www.fu-design.com/exhibition/bauhaus-blueprint-qevdv</code>
+                    <ul class="info-list">
+                        <li><b>Double click</b> anywhere to create a new note.</li>
+                        <li>One-shot — ratio + URL in the same note:</li>
+                    </ul>
+                    <div class="cmd-box">
+                        <div class="cmd-text">Create a 3:2 banner from https://www.fu-design.com/exhibition/bauhaus-blueprint-qevdv</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
                     </div>
                 </div>
 
+                <!-- PROJECT MANAGER -->
                 <div class="info-section">
                     <div class="info-section-header" style="color: #f1a456;">
                         <i data-lucide="user" size="16"></i> Project Manager
                     </div>
-                    <div class="info-commands">
-                        Swap content / Change to this content:
-                        <code>https://www.fu-design.com/exhibition/r1KQ3Cc1OARIk8zObUJr</code>
-                        New Exhibition:
-                        <code>https://www.fu-design.com/exhibition/deep-sea-vnpkc</code>
+                    <div class="cmd-box">
+                        <div class="cmd-label">Swap content / Change to this content:</div>
+                        <div class="cmd-text">https://www.fu-design.com/exhibition/r1KQ3Cc1OARIk8zObUJr</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
+                    </div>
+                    <div class="cmd-box">
+                        <div class="cmd-label">New Exhibition:</div>
+                        <div class="cmd-text">https://www.fu-design.com/exhibition/deep-sea-vnpkc</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
                     </div>
                 </div>
 
+                <!-- VI DESIGNER -->
                 <div class="info-section">
                     <div class="info-section-header" style="color: #ce538a;">
                         <i data-lucide="palette" size="16"></i> VI Designer
                     </div>
-                    <div class="info-commands">
-                        • Change canvas size to 16:10 / 4:3<br>
-                        • Change design to full background<br>
-                        • Try different style / Refer to this style<br>
-                        • Make all text black / white<br>
-                        &nbsp;&nbsp;<code>make text black</code> &nbsp; <code>make text white</code><br>
-                        • Resize image area<br>
-                        &nbsp;&nbsp;<code>bigger image</code> &nbsp; <code>smaller image</code>
+                    <ul class="info-list">
+                        <li>Change canvas size to 16:10 / 4:3</li>
+                        <li>Change design to full background</li>
+                        <li>Try different style / Refer to this style</li>
+                        <li>Make all text black / white:</li>
+                    </ul>
+                    <div class="cmd-box">
+                        <div class="cmd-text">make text black</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
+                    </div>
+                    <div class="cmd-box">
+                        <div class="cmd-text">make text white</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
+                    </div>
+                    <ul class="info-list">
+                        <li>Resize image area:</li>
+                    </ul>
+                    <div class="cmd-box">
+                        <div class="cmd-text">bigger image</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
+                    </div>
+                    <div class="cmd-box">
+                        <div class="cmd-text">smaller image</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
                     </div>
                 </div>
 
+                <!-- EDITOR -->
                 <div class="info-section">
                     <div class="info-section-header" style="color: #6bcdcf;">
                         <i data-lucide="type" size="16"></i> Editor
                     </div>
-                    <div class="info-commands">
-                        • Translate all text to Traditional Chinese<br>
-                        • Create a Japanese version<br>
-                        • Create an English version
+                    <div class="cmd-box">
+                        <div class="cmd-text">Translate all text to Traditional Chinese</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
+                    </div>
+                    <div class="cmd-box">
+                        <div class="cmd-text">Create a Japanese version</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
+                    </div>
+                    <div class="cmd-box">
+                        <div class="cmd-text">Create an English version</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
                     </div>
                 </div>
 
+                <!-- DATA ANALYST -->
                 <div class="info-section">
                     <div class="info-section-header" style="color: #5062c8;">
                         <i data-lucide="trending-up" size="16"></i> Data Analyst
                     </div>
-                    <div class="info-commands">
-                        • Show popular painting as banner<br>
-                        • Use Top artwork
+                    <div class="cmd-box">
+                        <div class="cmd-text">Show popular painting as banner</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
+                    </div>
+                    <div class="cmd-box">
+                        <div class="cmd-text">Use Top artwork</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
                     </div>
                 </div>
 
+                <!-- TECH PRODUCER -->
                 <div class="info-section">
                     <div class="info-section-header" style="color: #272a3a;">
                         <i data-lucide="download" size="16"></i> Tech Producer
                     </div>
-                    <div class="info-commands">
-                        • Export to jpg / png / pdf<br>
-                        • Copy design to clipboard
+                    <div class="cmd-box">
+                        <div class="cmd-text">Export to jpg / png / pdf</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
+                    </div>
+                    <div class="cmd-box">
+                        <div class="cmd-text">Copy design to clipboard</div>
+                        <button class="cmd-copy" onclick="copyCmd(this)">copy</button>
                     </div>
                 </div>
             </div>
@@ -4590,6 +4667,21 @@
         startLiveReload();
 
         // ── Info Popup Helpers ───────────────────────────────────────────────
+        function copyCmd(btn) {
+            const box = btn.closest('.cmd-box');
+            const text = box.querySelector('.cmd-text').textContent.trim();
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'copied!';
+                btn.classList.add('copied');
+                btn.style.opacity = '1';
+                setTimeout(() => {
+                    btn.textContent = 'copy';
+                    btn.classList.remove('copied');
+                    btn.style.opacity = '';
+                }, 1500);
+            });
+        }
+
         function toggleInfoPopup(show) {
             const overlay = document.getElementById('info-overlay');
             if (show) {
