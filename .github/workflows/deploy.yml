@@ -41,7 +41,14 @@ jobs:
             --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }} \
             --timeout=600s \
             --async \
-            --format='value(metadata.build.id)')
+            --format='value(id)')
+
+          BUILD_ID=$(echo "$BUILD_ID" | tr -d '[:space:]')
+
+          if [ -z "$BUILD_ID" ]; then
+            echo "Failed to capture Cloud Build ID from gcloud builds submit output"
+            exit 1
+          fi
 
           echo "Submitted build: $BUILD_ID"
 
